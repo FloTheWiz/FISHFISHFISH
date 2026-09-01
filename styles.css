@@ -1,0 +1,471 @@
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400..700;1,400..700&family=Londrina+Solid:wght@100;300;400;900&display=swap');
+
+.mainFont {
+    font-family: "Libre Baskerville", serif;
+    font-optical-sizing: auto;
+    /* <weight>: Use a value from 400 to 700*/
+    font-weight: 600;
+    font-style: normal;
+    
+}
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+    text-wrap-mode: nowrap;
+}
+
+html,
+body {
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+
+body {
+	position: relative;
+	background: #191f22;
+	font-family: "Libre Baskerville", serif;
+}
+
+/* Canvas layer */
+#gameCanvas,
+#ascendCanvas {
+	position: fixed;
+	left: 0;
+	width: 100vw;
+	image-rendering: pixelated;
+	image-rendering: crisp-edges;
+	border: none;
+}
+
+/* Main game is always the viewport */
+#gameCanvas {
+	top: 0;
+	height: 100vh;
+	z-index: 0;
+	background: #8888ee;
+}
+
+#ascendCanvas {
+    bottom: 0;
+    height: 100vh;
+    z-index: 1;           /* now above gameCanvas (z-index 0) */
+    background: transparent;
+    pointer-events: none; /* never blocks clicks when it's empty */
+}
+
+.t {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.5s ease-in-out;
+}
+#text {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    z-index: 5;
+    color: #212121;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    pointer-events: none;
+}
+
+#text>* {
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    color: #414141;
+    padding: 0;
+    margin: 0;
+    transition: color 2s ease-in;
+}
+
+#text>h1 {
+
+    font-size: 2.5em;
+}
+
+#text>h2 {
+    font-size: 2.0em
+}
+
+.panelToggle {
+    position: absolute;
+    z-index: 2;
+    transition: transform 0.7s, right 0.5s, left 0.5s;
+
+}
+.panelToggle.right{
+    right:16px;
+}
+.panelToggle.left{
+    left:16px;
+}
+
+.panelToggle>button {
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.toggleImg {
+    width: 64px;
+    height: 64px;
+    
+    image-rendering: pixelated;
+    filter: drop-shadow(2px 2px 2px #11111188);
+}
+.toggleImg:hover{
+    filter: drop-shadow(2px 2px 4px #11111188);
+}
+
+.panelContainer {
+    image-rendering: pixelated;
+    position: absolute;
+    top: 0;
+    width: 360px;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0px 16px 16px;
+    background-image: url('https://orteil.dashnet.org/cookieclicker/img/darkNoise.jpg');
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    transition: right 0.5s ease, left 0.5s ease-in-out;
+    z-index: 5;
+}
+
+.panelRight {
+    transition: right 0.5s ease, left 0.5s ease-in-out;
+    right: -400px;
+    /* width + padding buffer */
+}
+
+.panelRight.open {
+    right: 0;
+}
+
+.panelLeft {
+    left: -400px;
+    transition: right 0.5s ease, left 0.5s ease-in-out;
+}
+
+.panelLeft.open {
+    left: 0;
+}
+
+
+.panelBorder {
+    position: absolute;
+    top:0;
+    height:100vh;
+    width:16px;
+    /*background-color: blue;*/
+}
+.leftBorder{
+    
+
+    right:-16px
+}
+.rightBorder{
+    left:-16px;
+}
+.buildingBorder{
+    background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/borderharbor.png');
+}
+.upgradeBorder{
+    background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/borderharbor.png');
+}
+.panelList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.panelList button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.portraitCont {
+    position: relative;
+    width: 128px;
+    height: 128px;
+}
+
+.frame,
+.portrait {
+    position: absolute;
+    top: 0;
+
+    left: 0;
+    width: 128px;
+    height: 128px;
+    background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/portraits3x2.png');
+}
+
+
+.shopBtn {
+    padding: 2px 4px;
+    font-size: 0.9em;
+    background-color: #f1f1f1;
+    border-top: 2px solid #aaaaaa;
+    border-bottom: 4px solid #515151;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.shopBtn:focus,
+.shopBtn:hover {
+    background-color: #d2d2d2;
+}
+
+.shopBtn:active {
+    background-color: #818181;
+    border-bottom: 2px solid #515151;
+}
+
+/* The "bought" state – triggers the vanish animation */
+.shopBtn.bought {
+    animation: buy 0.8s forwards ease-in;
+}
+
+.shopBtn:disabled {
+    opacity: 0.5;
+}
+
+.shopBtn.bought.hidden {
+    display: none;
+}
+
+@keyframes buy {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    5% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+
+.shopBtn.locked {
+    opacity: 0.45;
+    font-style: italic;
+    cursor: not-allowed;
+    filter: grayscale(1);
+}
+
+.spriteIcon {
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+    display: inline-block;
+    flex-shrink: 0;
+    filter: drop-shadow(2px 2px 4px #111111);
+}
+
+
+.spriteIcon.silhouette,
+button.locked .spriteIcon {
+    filter: brightness(0) opacity(0.4);
+    /* solid black silhouette for teased upgrades */
+}
+
+.shopItem {
+    display:flex;
+    flex-direction:column;
+    text-align:left;
+}
+.shopItemText {
+    font-size:1.2em;
+    font-weight:800;
+}
+/* POPUPS */
+.popup {
+    position:absolute;
+    z-index: 10;
+}
+
+#offlinePopup{
+    display:none;
+    flex-direction:column;
+    width:100vw;
+    height:100vh;
+    gap:16px;
+    justify-content:center;
+    align-items: center;
+    font-size:2.0em;
+}
+#offlinePopup.open{
+    display:flex;
+}
+#offlinePopup>button{
+    padding: 8px 16px;
+    font-size: 1.1rem;
+    background-color: #f1f1f1;
+    border-top: 2px solid #aaaaaa;
+    border-bottom: 4px solid #515151;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+#offlinePopup>button:focus,#offlinePopup>button:hover {
+    background-color: #d2d2d2;
+}
+
+#offlinePopup>button:active {
+    background-color: #818181;
+    border-bottom: 2px solid #515151;
+}
+.popupText{
+    position:absolute;
+    height:100vh;
+    width:100vw;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+#ascendButton {
+    margin-top: 300px; /* temp */
+   background-color: #f1f1f1;
+    border-top: 2px solid #aaaaaa;
+    border-bottom: 4px solid #515151;
+    cursor: pointer;
+    padding: 10px 4px;
+    font-size: 0.9em;
+}
+
+#ascendButton:focus,
+#ascendButton:hover {
+    background-color: #d2d2d2;
+}
+
+#ascendButton:active {
+    background-color: #818181;
+    border-bottom: 2px solid #515151;
+}
+
+
+#ascendUI {
+    z-index: 10;
+    position: fixed;
+	opacity: 0;
+    height:100vh;
+    width:100vw;
+    padding-bottom: 12px;
+    gap:10vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+	pointer-events: none;
+	transition: opacity 0.5s ease-in-out;
+}
+
+
+#ascendUI.visible {
+	opacity: 1;
+	pointer-events: auto;
+}
+#ascendUI>h1{
+    color:white;
+    text-align: center;
+}
+
+
+.t.hidden {
+    opacity:0;
+    pointer-events:none;
+}
+
+#ascendMain {
+    height:60vh;
+    display: flex;
+    align-items:center;
+    justify-content:center;
+    gap:120px;
+}
+.londrina-solid-thin {
+  font-family: "Londrina Solid", sans-serif;
+  font-weight: 100;
+  font-style: normal;
+}
+
+.londrina-solid-light {
+  font-family: "Londrina Solid", sans-serif;
+  font-weight: 300;
+  font-style: normal;
+}
+
+.londrina-solid-regular {
+  font-family: "Londrina Solid", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.londrina-solid-black {
+  font-family: "Londrina Solid", sans-serif;
+  font-weight: 900;
+  font-style: normal;
+}
+
+.ascendOption {
+    color: white;
+    font-size:2em;
+    font-family: "Londrina Solid", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+#ascendMain > .ascendOption{
+	height: 240px;
+	width: 160px;
+	background-color: transparent;
+	background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/ascendbutton1.png');
+	background-repeat: no-repeat;
+
+	box-shadow:
+		2px 2px 4px #ccc,
+		0 0 0 rgba(166, 252, 219, 0);
+
+	transition:
+		box-shadow 0.5s ease,
+		transform 0.25s ease,
+		filter 0.5s ease;
+
+	cursor: pointer;
+}
+
+#ascendMain > .ascendOption:hover{
+	background-position: -160px 0px;
+
+	/*transform: translateY(-4px);*/
+
+	filter: brightness(1.15);
+
+	box-shadow:
+		2px 2px 8px #a6fcdb,
+		0 0 18px rgba(166, 252, 219, 0.5),
+		0 0 40px rgba(166, 252, 219, 0.2);
+}
+
+#cultistButton {
+    background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/books0.1.png');
+    display: inline-block;
+    height:64px;
+    width:64px;
+}
