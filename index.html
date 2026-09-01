@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>FISH FISH FISH</title>
+
+    <link rel="icon" type="image/png"
+        href="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Modals -->
+    <div id="popup" class="popup">
+        <div id="tooltip"></div>
+        <div id="offlinePopup">
+        <p id="offlinePopupText"></p><button id="offlinePopupClose">Nice</button>
+        </div>
+    </div>
+
+
+    <!-- Main Text-->
+    <div id="text" class="t mainFont">
+        <h1 id="fishDisplay" style="color:white">LOADING</h1>
+        <h2 id="fishPerSec"></h2>
+    </div>
+    <canvas id="gameCanvas" width="0" height="0"></canvas>
+
+    <!-- Right side: Upgrades -->
+    <div class="t panelToggle right" id="upgradeToggle" style="top:16px;">
+        <button onclick="Game.togglePanel('upgrade');"><img class="toggleImg"
+                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png"></button>
+    </div>
+    <div class="t panelContainer panelRight" id="upgradeContainer">
+        <div class="panelBorder"></div>
+    </div>
+
+
+    <!-- Left side: Buildings -->
+    <div class="t panelToggle" id="buildingToggle" style="left:16px;top:16px;">
+        <button onclick="Game.togglePanel('building');"><img class="toggleImg"
+                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png"></button>
+    </div>
+    <div class="t panelContainer panelLeft" id="buildingContainer"></div>
+
+    <!-- Left Middle  Cultist -->
+    <div class="t panelToggle" id="cultistToggle" style="left:16px; top:40vh; display:none;">
+        <button onclick="Game.togglePanel('cultist');"><div class="toggleImg" id="cultistButton"></div></button>
+    </div>
+    <div class="t panelContainer panelLeft" id="cultistContainer"></div>
+
+    <!-- Left Bottom Bag -->
+    <!-- Bottom-right: Settings -->
+    <div class="t panelToggle" id="settingsToggle" style="right:16px; bottom:16px; top:auto;">
+        <button onclick="Game.togglePanel('settings');">⚙️</button>
+        
+    </div>
+    <div class="t panelContainer panelRight" id="settingsContainer">
+    <!-- This needs to be fixed to update dynamically --> 
+    </div>
+    <canvas id="ascendCanvas" width="0" height="0"></canvas>
+    <div id="ascendUI">
+        <div id="ascendMain">
+                <button class="ascendOption">CTHULHU</button>
+                <button class="ascendOption">???????</button>
+                <button class="ascendOption">The Diver</button>
+        </div>
+        <h1 id="ascendText">Ascension isn't implemented, but thank you for playing :)</h1>
+        <h1 id="ascendTextSub">You earned: Fish</h1>
+        <button id="reincarnateButton" style="width:40vw;" class="shopBtn" onclick="Game.ascension.reincarnate()">ASCEND FROM THE DEPTHS</button>
+    </div>
+    <script src="main.js"></script>
+</body>
+</html>
