@@ -2876,7 +2876,7 @@ Game.addUpgrade({
 	purchased: false,
 	effects: {
 		fishPerSecMult: 0.05
-	},yo
+	},
 	onBuy: function() {
 		Game.allFishById["flo_seahorse"].unlocked = true;
 	} 
