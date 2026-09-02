@@ -1838,13 +1838,55 @@ const Game = {
 		if (panel.toggleImg) {
 			panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
 
-			// there's gotta be a better way...
-			const offset = panel.open ? panel.el.getBoundingClientRect().width : 16;
+            const panelSize = 360;
+            var offsetX = 0;
+            const smallScreen = Game.canvas.width <= panelSize*1.2;
+
+            if (panel.open){
+                panel.toggleImg.style.zIndex = "5";
+
+                // Store the offset from top or bottom in case we need it (like mobile UI changes)
+                if (panel.toggleImg.style.bottom){
+                    panel.temp = {"top":0,offsetY:panel.toggleImg.style.bottom};
+                }
+                if (panel.toggleImg.style.top){
+                    panel.temp = {"top":1,offsetY:panel.toggleImg.style.top};
+                }
+
+                
+                if (smallScreen){
+                    panel.toggleImg.style.top = "auto";
+                    panel.toggleImg.style.bottom = "16px";
+                    offsetX = "16px";
+                    }
+                else {
+                    offsetX = panelSize*1.1;
+                    }
+                }
+                
+            if (!panel.open) {
+                panel.toggleImg.style.zIndex = "1";
+                console.log(panel.temp);
+                if (panel.temp){
+                    if (panel.temp.top) 
+                        {
+                            panel.toggleImg.style.top = panel.temp.offsetY;
+                            panel.toggleImg.style.bottom = "auto";
+                        }
+                    if (panel.temp.bottom)
+                        {
+                            panel.toggleImg.style.bottom = panel.temp.offsetY;
+                            panel.toggleImg.style.top = "auto";
+                        }
+                }
+            }
+            
+			//const offset = panel.open ? panel.el.getBoundingClientRect().width- : 16;
 
 			if (panel.side === "right") {
-				panel.toggleImg.style.right = `${offset}px`;
+				panel.toggleImg.style.right = `${offsetX}px`;
 			} else if (panel.side === "left") {
-				panel.toggleImg.style.left = `${offset}px`;
+				panel.toggleImg.style.left = `${offsetX}px`;
 			}
 		}
 	},
