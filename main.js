@@ -1785,13 +1785,10 @@ const Game = {
 			open: false,
 			build: function(div) {
 				div.innerHTML = "<h2>The Bag</h2>";
-
-				// Stats and Achievements get fleshed out next pass - these are just anchor points
-				// so build() has somewhere stable to render into without rebuilding the whole panel.
 				const stats = document.createElement("div");
 				stats.id = "bagStats";
 				div.appendChild(stats);
-
+				// TODO TODO TODO 
 				const achievements = document.createElement("div");
 				achievements.id = "bagAchievements";
 				div.appendChild(achievements);
