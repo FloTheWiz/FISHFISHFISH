@@ -154,9 +154,9 @@ const Game = {
 
 	// SAVE STATE
 	SAVE_KEY: "floFishSave",
-	lastSaveTime: 0, // timestamp of the last time we captured state (drives offline-progress math)
-	maxOfflineSeconds: 8 * 60 * 60, // cap offline gains at 8 hours so nobody comes back to a broken economy
-	offlineEfficiency: 1.0, // dial this down (e.g. 0.5) if full-rate offline gains feel too generous
+	lastSaveTime: 0, // timestamp
+	maxOfflineSeconds: 8 * 60 * 60, // cap offline gains at 8 hours... for NOW >:D
+	offlineEfficiency: 1.0,
 	saveToastEl: null,
 	saveToastTimeout: null,
 
@@ -182,6 +182,7 @@ const Game = {
 
 		this.hookMenu();
 		this.hookPopups();
+		this.tooltip.ensure();
 		this.ascension.hook();
 
 		Game.canvas.addEventListener("pointerdown", Game.handleClick);
@@ -198,12 +199,12 @@ const Game = {
 	boot: function() {
 		Game.hook();
 		Game.resize();
-		Game.load(); // restore save + apply offline progress BEFORE the first frame renders
+		Game.load(); 
 
 		window.addEventListener("resize", Game.resize);
 		document.addEventListener("visibilitychange", Game.handleVisibilityChange);
 		window.addEventListener("beforeunload", () => Game.save(
-			false)); // no point flashing a toast on the way out
+			false)); 
 
 		Game.bootSprites();
 		Game.setupParticlePool();
@@ -211,7 +212,7 @@ const Game = {
         Game.cloudManager.initialClouds();
 		requestAnimationFrame(Game.loop);
 		setInterval(Game.tick, 1000);
-		setInterval(Game.save, 30000); // autosave safety net every 30s
+		setInterval(Game.save, 30000); // autosave every 30s
 	},
 
 	// PAUSE / VISIBILITY
@@ -224,7 +225,7 @@ const Game = {
 
 		if (isPaused) {
 			Game.save(); // snapshot state + lastSaveTime the moment we go away
-		} else { // this could do with "coalescing" and autoapplying rather than bringing up the popup i think
+		} else { 
 			Game.lastTime = null; // forces loop()'s existing "first frame" guard, so we don't get a huge dt
 			const elapsed = (Date.now() - Game.lastSaveTime) / 1000;
 			Game.applyOfflineProgress(elapsed);
@@ -400,13 +401,24 @@ const Game = {
 		},
 
 		ascend() {
+			this.hook();
 			if (this.state !== "idle") return;
 			this.state = "sinking";
 			this.timer = 0;
 			Game.hideGameUI();
 
-
+			getEle('ascendUI').innerHTML = `
+				<div id="ascendMain">
+					<button class="ascendOption">CTHULHU</button>
+					<button class="ascendOption">???????</button>
+					<button class="ascendOption">The Diver</button>
+			</div>
+			<h1 id="ascendText">Ascension isn't implemented, but thank you for playing :)</h1>
+			<h1 id="ascendTextSub">You earned: Fish</h1>
+			<button id="reincarnateButton" style="width:40vw;" class="shopBtn" onclick="Game.ascension.reincarnate()">ASCEND FROM THE DEPTHS</button>
+			`;
 			getEle('ascendTextSub').textContent = `You earned: ${Math.floor(Game.fishAllTime)} total Fish!`
+			
 		},
 
 		reincarnate() {
@@ -532,181 +544,12 @@ const Game = {
 	},
 	ensurePanelsClosed: function(){
 		for (const id in this.panels) {
-			const panel = this.panels[id];
-			if (panel.open) {
-				console.log("Closing "+ id)
-				this.togglePanel(id);
-				console.log(panel.open)
-			}
+			this.closePanel(id);
 		}
 		// Also hide Cultist and Bag
 		var cultToggle = getEle('cultistToggle');
 		cultToggle.style.display = 'none';
 	},
-	/*
-	isAscending: false,
-	ascendTimer: 0, // set on ascend, time before stopping main game and resetting
-	ascendStarted: false, 
-	stopRendering: false, // set once above timer is finished
-	ascendCanvas: null,
-	descend: false,
-
-
-	// This is a fucking MESS (the commented code below)
-	// Basically the idea is you fall through the boat (+The boat breaks in future, +A tentacle comes and grabs you)
-	// Then the bottom canvas moves up as the top canvas does to simulate the falling into the sea
-	// Descending I'm thinking we do a uhhh like fade through effect? That could maybe be cool?
-
-	// Maybe a way to do this is EXPANDING the main canvas on the y axis and moving it up at the same time, that way we can keep the gradient, have a tentacle, etc. 
-	// Then we simply shift it back to reincarnate? 
-	// My attempt at this VVVV 
-	ascend: function(){
-		console.log("Started Ascension");
-		// isAscending = true, ascendTimer = 0, ascensionStarted = true, -> ascendTimer += dt -> 
-		this.isAscending = true;
-		this.ascendTimer = 0;
-		this.ascendStarted = true;
-	},
-	reincarnate: function(){
-		
-	},
-
-	growShrinkCanvas: function(){
-		var canv = this.canvas;
-		canv.style.height = this.ascendTimer;
-		canv.style.top = `-${this.ascendTimer}px`;
-	},
-	updateAscend: function(dt){
-		if (!this.ascendStarted) return;
-		var val = dt * 1000;
-		if (this.descend) this.ascendTimer -= val;
-		else this.ascendTimer += val;
-		if (this.ascendTimer > 1000) {
-			this.ascendStarted = false; // the ascend has "finished" and should proceed to logic / drawing
-			return;
-		}
-		this.growShrinkCanvas();
-	},
-	drawAscend: function(dt){
-		// Takes the WHOLE canvas. 
-
-	},
-	/*
-	ascend: function(){
-		console.log("Ascension started!");
-		this.isAscending = true;
-		var canvas = this.ascendCanvas
-		if (!canvas) {
-			canvas = getEle('ascendCanvas');
-			this.ascendCanvas = canvas;
-		}
-		
-		canvas.style.bottom = `-${this.canvas.height+2}px`;
-		canvas.width = this.canvas.width;
-		canvas.height = this.canvas.height;
-		//console.log("Finished!")
-	},
-	isHidden: false,
-	// I have an element called AscendUI that I both need to set to display block and then opacity 1 to fade in! 
-	fadeElements: function(out=true){
-		const elements = document.getElementsByClassName('t');
-		for (const element of elements) {
-			element.style.opacity = out ? '0' : '1';
-		}
-		if (out){
-		setTimeout(() => {
-			this.hideHTML();
-		}, 500);}
-		
-	},
-	hideHTML: function(){
-		const elements = document.getElementsByClassName('t');
-		for (const element of elements) {
-			element.style.display = 'none';
-			element.classList.remove('open'); // in case you had UI open
-		}
-		this.isHidden = true;
-	},
-	showHTML: function(){
-		const elements = document.getElementsByClassName('t');
-		for (const element of elements) {
-			element.style.display = 'block';
-		}
-		this.isHidden = false;
-	},
-	updateAscend: function(dt) {
-		this.ascendTimer += dt * 1000;
-		if (this.ascendTimer > 1000 && !this.ascendStarted) {
-			this.ascendStarted = true;
-
-			this.fadeElements(); // Base game UI fades out
-			this.showAscendUI(); // Ascension UI fades in
-		}
-
-		if (this.ascendTimer > 800) {
-			this.stopRendering = true;
-		}
-
-		if (this.ascendTimer > 1000) {
-			const progress = this.ascendTimer - 1000;
-
-			this.canvas.style.top =
-				`-${Math.min(progress, this.canvas.height)}px`;
-
-			this.ascendCanvas.style.bottom =
-				`-${Math.max(this.canvas.height - progress, 0)}px`;
-		}
-	},
-	showAscendUI: function() {
-		const ui = getEle('ascendUI');
-
-		ui.style.display = 'block';
-
-		// Force display:block to be committed before changing opacity.
-		requestAnimationFrame(() => {
-			ui.style.opacity = '1';
-		});
-	},
-	reincarnate: function() {
-		console.log("Reincarnation started!");
-		this.isAscending = false;
-		this.stopRendering = false;
-		this.ascendStarted = false;
-		this.ascendTimer = 0;
-		this.resetGame(hardReset=false);
-		this.startUnascend();
-	},
-	startUnascend: function() {
-		this.ascendCanvas.style.height = 0;
-		this.ascendCanvas.style.bottom = 0;
-		Game.canvas.style.top = 0;
-		this.showHTML();
-		this.fadeElements(out=false);
-	},
-	drawAscend: function(dt){		
-		var canvas = this.ascendCanvas;
-		var ctx = canvas.getContext('2d');
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-		// draw bg
-		var colors = Game.getEnvColors();
-		const ascGrad = ctx.createLinearGradient(0, 0, 0, Game.waterLine);
-		ascGrad.addColorStop(0, colors.waterDeep);
-		ascGrad.addColorStop(0.1, colors.waterShallow);
-		ctx.fillStyle = ascGrad;
-		ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-		// Flash Some big Text
-		ctx.fillStyle = "#ffffff";
-		ctx.textAlign = "center";
-		ctx.font = "48px Monaco, monospace";
-		ctx.fillText("You ascended", canvas.width / 2, canvas.height / 2-100);
-		ctx.font = "24px Monaco, monospace";
-		ctx.fillText("You sink to the briny depths...", canvas.width / 2, canvas.height / 2 - 60);
-	},*/
-	/// MAYBE ANOTHER WAY 
-	// what about having the second canvas be slightly transparent on the gradient?? Maybe compatibility sucks for that tho.
-
 	// CLICK EVENTS
 
 	boatHitbox: {
@@ -1817,6 +1660,7 @@ const Game = {
 						name: upgrade.name,
 						cost: upgrade.cost,
 						desc: upgrade.desc,
+						flavor: (upgrade.flavor || "AAAH! NO FLAVOR TEXT!!!!!!")
 					}
 					const btn = Game.renderShopItem(upgrade, {
 						unlocked: unlocked,
@@ -1867,6 +1711,7 @@ const Game = {
 						name: upgrade.name,
 						cost: upgrade.cost,
 						desc: upgrade.desc,
+						flavor: upgrade.flavor || "AAAH! NO FLAVOR TEXT!!!!!!",
 					}
 					const btn = Game.renderShopItem(upgrade, {
 						unlocked: unlocked,
@@ -1911,6 +1756,7 @@ const Game = {
 						name: `${building.name} x${building.owned}`,
 						cost: building.cost,
 						desc: building.desc,
+						flavor: building.flavor || "AAAH! NO FLAVOR TEXT!!!!!!",
 
 					}
 					const btn = Game.renderShopItem(building, {
@@ -1930,6 +1776,27 @@ const Game = {
 				}
 				div.appendChild(list);
 				div.appendChild(Game.makePanelBorder('building',this.side));
+			}
+		},
+		bag: {
+			side: "right",
+			el: null,
+			toggleImg: null,
+			open: false,
+			build: function(div) {
+				div.innerHTML = "<h2>The Bag</h2>";
+
+				// Stats and Achievements get fleshed out next pass - these are just anchor points
+				// so build() has somewhere stable to render into without rebuilding the whole panel.
+				const stats = document.createElement("div");
+				stats.id = "bagStats";
+				div.appendChild(stats);
+
+				const achievements = document.createElement("div");
+				achievements.id = "bagAchievements";
+				div.appendChild(achievements);
+
+				div.appendChild(Game.makePanelBorder('bag', this.side));
 			}
 		},
 		settings: {
@@ -1960,24 +1827,41 @@ const Game = {
 	togglePanel: function(id) {
 		const panel = this.panels[id];
 		if (!panel || !panel.el) return;
+		if (!panel.open) {
+			for (const otherId in this.panels) {
+				if (otherId === id) continue;
+				const other = this.panels[otherId];
+				if (other.side === panel.side && other.open) this.closePanel(otherId);
+			}
+		}
 
 		panel.open = !panel.open;
 		panel.el.classList.toggle("open", panel.open);
 
 		if (panel.toggleImg) {
 			panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
-			if (panel.side==="right") {
-				//console.log("OPEN SESAME")
-				//getEle(id+"Toggle")
-				panel.toggleImg.style.right = panel.open ? "400px" : "0px";
-				//console.error("wee woo");
-				//throw new Error("what")
-				return;
+
+			// there's gotta be a better way...
+			const offset = panel.open ? panel.el.getBoundingClientRect().width : 16;
+
+			if (panel.side === "right") {
+				panel.toggleImg.style.right = `${offset}px`;
+			} else if (panel.side === "left") {
+				panel.toggleImg.style.left = `${offset}px`;
 			}
-			if (panel.side==="left") {
-				panel.toggleImg.style.left = panel.open ? "400px" : "0px";
-				return;
-			}
+		}
+	},
+	closePanel: function(id) {
+		const panel = this.panels[id];
+		if (!panel || !panel.el || !panel.open) return;
+
+		panel.open = false;
+		panel.el.classList.remove("open");
+
+		if (panel.toggleImg) {
+			panel.toggleImg.style.transform = "rotate(0deg)";
+			if (panel.side === "right") panel.toggleImg.style.right = "0px";
+			else if (panel.side === "left") panel.toggleImg.style.left = "0px";
 		}
 	},
 	updateShopAffordability: function() {
@@ -2027,13 +1911,120 @@ const Game = {
 	isUpgradeTeased: function(upgrade) {
 		return Game.isTeased(upgrade.requires, id => Game.upgradesById[id]?.purchased);
 	},
-	makeShopTooltip: function(button, item){
-		var side = "left"
-		if (item.shop == "upgrade") side = "right";
+	// TOOLTIPS
+	tooltip: {
+		el: null,
+		titleEl: null,
+		flavorEl: null,
+		descEl: null,
+		metaEl: null,
+		current: null,
 
+		ensure: function() {
+			if (this.el) return this.el;
 
+			const el = document.createElement("div");
+			el.id = "gameTooltip";
+			el.className = "gameTooltip";
+
+			const title = document.createElement("div");
+			title.className = "gameTooltipTitle";
+
+			const flavor = document.createElement("div");
+			flavor.className = "gameTooltipflavor";
+
+			const desc = document.createElement("div");
+			desc.className = "gameTooltipDesc";
+
+			const meta = document.createElement("div");
+			meta.className = "gameTooltipMeta";
+
+			el.appendChild(title);
+			el.appendChild(flavor);
+			el.appendChild(desc);
+			el.appendChild(meta);
+			document.body.appendChild(el);
+
+			this.el = el;
+			this.titleEl = title;
+			this.flavorEl = flavor;
+			this.descEl = desc;
+			this.metaEl = meta;
+			return el;
+		},
+
+		show: function(item, opts, labelText, anchorEl) {
+			this.ensure();
+			this.current = item;
+
+			this.titleEl.textContent = opts.unlocked ? labelText.name : "???";
+
+			this.flavorEl.textContent = opts.unlocked ? (labelText.flavor || "") : "";
+			this.flavorEl.classList.toggle("shown", !!(opts.unlocked && labelText.flavor));
+
+			this.descEl.textContent = opts.unlocked ? (labelText.desc || "") : "A mysterious find.";
+			this.metaEl.innerHTML = "";
+
+			if (opts.unlocked) {
+				const cost = document.createElement("div");
+				cost.textContent = `Cost: ${labelText.cost} Fish`;
+				this.metaEl.appendChild(cost);
+
+				if (opts.dataType === "building") {
+					const rate = item.baseRate * item.rateMult;
+
+					const owned = document.createElement("div");
+					owned.textContent = `Owned: ${item.owned}`;
+					this.metaEl.appendChild(owned);
+
+					const perBuilding = document.createElement("div");
+					perBuilding.textContent = `Produces: ${rate.toFixed(2)} Fish/sec each`;
+					this.metaEl.appendChild(perBuilding);
+
+					if (item.owned > 0) {
+						const total = document.createElement("div");
+						total.textContent = `Producing: ${(rate * item.owned).toFixed(2)} Fish/sec total`;
+						this.metaEl.appendChild(total);
+					}
+				}
+			} else {
+				const missing = opts.requires
+					.filter(id => !opts.isDone(id))
+					.map(id => opts.lookupName(id) || "???");
+				const req = document.createElement("div");
+				req.textContent = `Requires: ${missing.join(", ")}`;
+				this.metaEl.appendChild(req);
+			}
+
+			this.el.classList.add("open");
+			this.reposition(anchorEl);
+		},
+
+		reposition: function(anchorEl) {
+			if (!this.el || !anchorEl) return;
+			const rect = anchorEl.getBoundingClientRect();
+			const tipRect = this.el.getBoundingClientRect();
+			const margin = 10;
+
+			let x = rect.right + margin;
+			if (x + tipRect.width > window.innerWidth - margin) x = rect.left - tipRect.width - margin;
+			x = Math.max(margin, x);
+
+			let y = rect.top;
+			if (y + tipRect.height > window.innerHeight - margin) y = window.innerHeight - tipRect.height - margin;
+			y = Math.max(margin, y);
+
+			this.el.style.left = `${x}px`;
+			this.el.style.top = `${y}px`;
+		},
+
+		hide: function() {
+			if (!this.el) return;
+			this.current = null;
+			this.el.classList.remove("open");
+		}
 	},
-	renderShopItem: function(item, opts,labelText) {
+	renderShopItem: function(item, opts, labelText) { // fixed ^^
 		const btn = document.createElement("button");
 		btn.classList.add("shopBtn");
 		btn.dataset.itemId = item.id;
@@ -2043,25 +2034,16 @@ const Game = {
 			btn.appendChild(Game.renderIcon(item.icon.sheet, item.icon.col, item.icon.row, opts.iconSize));
 			var labelDiv = document.createElement('div');
 			labelDiv.className = "shopItem";
-			console.log(item)
 			labelDiv.innerHTML = `
 				<span class="shopItemText">${labelText.name}</span>
-				<span${labelText.desc || "A really cool item"}</span>
 				<span>${labelText.cost} Fish</span>
 				`;
-			/*
-			const label = document.createElement("span");
-			label.textContent = item.name;
-			//label.textContent = opts.mainLabel(item);
-			*/
 			btn.appendChild(labelDiv);
 
 			btn.classList.remove("locked");
 			btn.disabled = !opts.affordable;
 			btn.addEventListener("click", () => opts.onBuy(item));
-			//btn.addEventListener("hover", () => )
 		} else {
-			console.log(`${item.name} is Locked`)
 			btn.appendChild(Game.renderIcon(item.icon.sheet, item.icon.col, item.icon.row, opts.iconSize));
 			btn.classList.add("locked", "silhouette");
 
@@ -2075,6 +2057,11 @@ const Game = {
 
 			btn.disabled = true;
 		}
+
+		// Works identically for unlocked or silhouette items - Game.tooltip decides what to reveal.
+		btn.addEventListener("mouseenter", () => Game.tooltip.show(item, opts, labelText, btn));
+		btn.addEventListener("mouseleave", () => Game.tooltip.hide());
+		btn.addEventListener("mousedown", () => Game.tooltip.hide()); // avoid a stale tooltip after a buy reflows the list
 
 		return btn;
 	},
@@ -2413,7 +2400,7 @@ const Game = {
 	},
 
 	applyOfflineProgress: function(elapsedSeconds) {
-		if (!elapsedSeconds || elapsedSeconds < 5) return; // ignore tiny gaps (alt-tab for a second, etc)
+		if (!elapsedSeconds || elapsedSeconds < 10) return; // ignore tiny gaps 
 		if (Game.fishPerSecond <= 0) return;
 		const wasCapped = elapsedSeconds > Game.maxOfflineSeconds;
 		const cappedSeconds = Math.min(elapsedSeconds, Game.maxOfflineSeconds);
@@ -2426,10 +2413,18 @@ const Game = {
 	},
 	showOfflinePopup: function(gained, seconds, wasCapped) {
 		const mins = Math.floor(seconds / 60);
-		const timeStr = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+		const hours = Math.floor(mins / 60);
+		const remainingMins = mins % 60;
+		const remainingSecs = Math.floor(seconds % 60);
+
+		const timeStr = hours > 0
+			? `${hours}h ${remainingMins}m ${remainingSecs}s`
+			: mins > 0
+				? `${mins}m ${remainingSecs}s`
+				: `${remainingSecs}s`;
+
 		const message =
 			`Welcome back! You earned ${Math.floor(gained)} fish over ${timeStr}${wasCapped ? " (capped)" : ""}.`;
-
 		const popup = getEle("offlinePopup");
 		const text = getEle("offlinePopupText");
 
@@ -2793,6 +2788,7 @@ Game.addBuilding({
 	id: "net",
 	name: "Fishing Net",
 	desc: "Passively catches fish over time.",
+	flavor: "A lowly net. What will it do?",
 	baseRate: 0.1,
 	baseCost: 25,
 	costScale: 1.15,
@@ -2811,6 +2807,7 @@ Game.addBuilding({
 	id: "grandpa",
 	name: "Grandpas",
 	desc: "Grandpas with nothing better to do than help you fish.",
+	flavor: "The Grandmas were busy.",
 	baseRate: 1,
 	baseCost: 250,
 	costScale: 1.15,
@@ -2829,6 +2826,7 @@ Game.addBuilding({
 	id: "pier",
 	name: "Pier",
 	desc: "A pier for your Grandpas to sit on.",
+	flavor: "Pier? I 'ardly know 'er!",
 	baseRate: 15,
 	baseCost: 2500,
 	costScale: 1.15,
@@ -2853,9 +2851,10 @@ Game.addBuilding({
 ///////////////////////////////////////
 
 Game.addUpgrade({
-	id: "netUpgrade1",
+	id: "bobberUp1",
 	name: "New Bobber!",
-	desc: "Catch 2 fish per click instead of 1.",
+	desc: "Catch 1 extra fish per click!",
+	flavor: "Swap out that old crusty one...",
 	cost: 25,
 	requires: [],
 	icon: {
@@ -2869,11 +2868,12 @@ Game.addUpgrade({
 	} 
 });
 Game.addUpgrade({
-	id: "netUpgrade2",
+	id: "bobberUp2",
 	name: "Better Bobber",
 	desc: "Catch 3 fish per click instead of 2.",
+	flavor: "",
 	cost: 100,
-	requires: ["netUpgrade1"], 
+	requires: ["bobberUp1"], 
 	icon: {
 		sheet: "flo_icons_ui",
 		col: 1,
@@ -2889,8 +2889,8 @@ Game.addUpgrade({
 	id: "nightPower1",
 	name: "Night Owl",
 	desc: "+2% Fish Per Click while it's Nighttime.",
-	cost: 3, // CHANGE
-	requires: ["netUpgrade1"],
+	cost: 500, // CHANGE
+	requires: ["bobberUp2","seahorse"],
 	icon: {
 		sheet: "flo_icons_ui",
 		col: 4,
@@ -2905,8 +2905,8 @@ Game.addUpgrade({
 	id: "dayPower1",
 	name: "Daylight Dancer",
 	desc: "+2% Fish Per Second while it's Daytime.",
-	cost: 3, // CHANGE
-	requires: ["netUpgrade1"],
+	cost: 500, // CHANGE
+	requires: ["bobberUp2","seahorse"],
 	icon: {
 		sheet: "flo_icons_ui",
 		col: 4,
@@ -2921,9 +2921,10 @@ Game.addUpgrade({
 Game.addUpgrade({
 	id: "seahorse",
 	name: "Poseidon's Races",
-	desc: "+5% Fish Per Second! Also unlocks seahorses",
+	desc: "+5% Fish Per Second! Also unlocks Seahorses!",
+	flavor: "Apparently they're not fans of Water Polos.",
 	cost: 150,
-	requires: ["netUpgrade1"],
+	requires: ["bobberUp1"],
 	icon: {
 		sheet: "flo_icons_ui",
 		col: 0,
@@ -2936,6 +2937,25 @@ Game.addUpgrade({
 	onBuy: function() {
 		Game.allFishById["flo_seahorse"].unlocked = true;
 	} 
+});
+Game.addUpgrade({
+	id: "fisherBag",
+	name: "Fishing Bag",
+	desc: "A fishing bag to store all your Trophies and Stats!",
+	cost: 50,
+	requires: ["bobberUp1"],
+	icon: {
+		sheet: "flo_icons_ui",
+		col: 9,
+		row: 0
+	},
+	purchased: false,
+	effects: {},
+	onBuy: function() {
+		//console.log("woo woo")
+		var cultToggle = getEle('bagToggle');
+		cultToggle.style.display = 'block';
+	}
 });
 Game.addUpgrade({
 	id: "cultistFavor",

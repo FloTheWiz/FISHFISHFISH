@@ -13,7 +13,7 @@
 	margin: 0;
 	padding: 0;
 	box-sizing: border-box;
-    text-wrap-mode: nowrap;
+    
 }
 
 html,
@@ -98,7 +98,9 @@ body {
     position: absolute;
     z-index: 2;
     transition: transform 0.7s, right 0.5s, left 0.5s;
-
+}
+#bagToggle { /* Prolly do this for cultist too ngl*/
+    display: none; 
 }
 .panelToggle.right{
     right:16px;
@@ -480,4 +482,58 @@ button.locked .spriteIcon {
 @keyframes shopPulse {
 	0%, 100% { filter: drop-shadow(0 0 0px gold); }
 	50% { filter: drop-shadow(0 0 8px gold); }
+}
+/*TOOLTIPS*/
+.gameTooltip {
+    position: fixed;
+    max-width: 240px;
+    padding: 10px 12px;
+    background-color: rgba(15, 20, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #eee;
+    font-family: "Libre Baskerville", serif;
+    font-size: 0.85em;
+    line-height: 1.4;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    z-index: 10000;
+}
+
+.gameTooltip.open {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.gameTooltipTitle {
+    font-weight: 700;
+    margin-bottom: 4px;
+    font-size: 1.05em;
+}
+
+.gameTooltipflavor {
+    font-style: italic;
+    opacity: 0.65;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+    display: none;
+}
+
+.gameTooltipflavor.shown {
+    display: block;
+}
+
+.gameTooltipDesc {
+    opacity: 0.9;
+    margin-bottom: 6px;
+}
+
+.gameTooltipMeta {
+    font-size: 0.9em;
+    opacity: 0.75;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }

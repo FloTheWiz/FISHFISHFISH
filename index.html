@@ -29,14 +29,6 @@
     </div>
     <canvas id="gameCanvas" width="0" height="0"></canvas>
 
-    <!-- Right side: Upgrades -->
-    <div class="t panelToggle right" id="upgradeToggle" style="top:16px;">
-        <button onclick="Game.togglePanel('upgrade');"><img class="toggleImg"
-                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png"></button>
-    </div>
-    <div class="t panelContainer panelRight" id="upgradeContainer">
-        <div class="panelBorder"></div>
-    </div>
 
 
     <!-- Left side: Buildings -->
@@ -52,25 +44,41 @@
     </div>
     <div class="t panelContainer panelLeft" id="cultistContainer"></div>
 
-    <!-- Left Bottom Bag -->
+
+    
+    <!-- Right side: Upgrades -->
+    <div class="t panelToggle right" id="upgradeToggle" style="top:16px;">
+        <button onclick="Game.togglePanel('upgrade');"><img class="toggleImg"
+                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png"></button>
+    </div>
+    <div class="t panelContainer panelRight" id="upgradeContainer">
+        <div class="panelBorder"></div>
+    </div>
+
+    <!-- Right Middle  Bag -->
+    <div class="t panelToggle" id="bagToggle" style="right:16px; top:40vh;">
+        <button onclick="Game.togglePanel('bag');">
+            <img class="toggleImg"
+                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png">
+        </button>
+    </div>
+    <div class="t panelContainer panelRight" id="bagContainer"></div>
+
     <!-- Bottom-right: Settings -->
     <div class="t panelToggle" id="settingsToggle" style="right:16px; bottom:16px; top:auto;">
-        <button onclick="Game.togglePanel('settings');">⚙️</button>
-        
+        <button onclick="Game.togglePanel('settings');">
+            <img class="toggleImg"
+                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png">
+        </button>
     </div>
-    <div class="t panelContainer panelRight" id="settingsContainer">
-        
-    </div>
+    <div class="t panelContainer panelRight" id="settingsContainer"></div>
+
+
+
+
     <canvas id="ascendCanvas" width="0" height="0"></canvas>
     <div id="ascendUI">
-        <div id="ascendMain">
-                <button class="ascendOption">CTHULHU</button>
-                <button class="ascendOption">???????</button>
-                <button class="ascendOption">The Diver</button>
-        </div>
-        <h1 id="ascendText">Ascension isn't implemented, but thank you for playing :)</h1>
-        <h1 id="ascendTextSub">You earned: Fish</h1>
-        <button id="reincarnateButton" style="width:40vw;" class="shopBtn" onclick="Game.ascension.reincarnate()">ASCEND FROM THE DEPTHS</button>
+        
     </div>
     <script src="main.js"></script>
 </body>
