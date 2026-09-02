@@ -339,6 +339,10 @@ button.locked .spriteIcon {
     align-items:center;
     justify-content:center;
 }
+#offlinePopup{
+    background-color: rgba(0,0,0,0.5);
+    color:white;
+}
 #ascendButton {
     margin-top: 300px; /* temp */
    background-color: #f1f1f1;
@@ -468,4 +472,12 @@ button.locked .spriteIcon {
     display: inline-block;
     height:64px;
     width:64px;
+}
+
+.shopGlow {
+	animation: shopPulse 5s ease-in-out infinite;
+}
+@keyframes shopPulse {
+	0%, 100% { filter: drop-shadow(0 0 0px gold); }
+	50% { filter: drop-shadow(0 0 8px gold); }
 }

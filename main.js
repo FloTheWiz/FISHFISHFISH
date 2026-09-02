@@ -1813,7 +1813,11 @@ const Game = {
 					const unlocked = Game.isUpgradeUnlocked(upgrade);
 					const teased = Game.isUpgradeTeased(upgrade);
 					if (!unlocked && !teased) continue;
-
+					const label = {
+						name: upgrade.name,
+						cost: upgrade.cost,
+						desc: upgrade.desc,
+					}
 					const btn = Game.renderShopItem(upgrade, {
 						unlocked: unlocked,
 						iconSize: unlocked ? 64 : 32,
@@ -1824,7 +1828,7 @@ const Game = {
 						requires: upgrade.requires,
 						isDone: (id) => Game.upgradesById[id]?.purchased,
 						lookupName: (id) => Game.upgradesById[id]?.name
-					});
+					},label);
 
 					list.appendChild(btn);
 				}
@@ -1859,7 +1863,11 @@ const Game = {
 					const unlocked = Game.isUpgradeUnlocked(upgrade);
 					const teased = Game.isUpgradeTeased(upgrade);
 					if (!unlocked && !teased) continue;
-
+					const label = {
+						name: upgrade.name,
+						cost: upgrade.cost,
+						desc: upgrade.desc,
+					}
 					const btn = Game.renderShopItem(upgrade, {
 						unlocked: unlocked,
 						iconSize: unlocked ? 64 : 32,
@@ -1870,7 +1878,7 @@ const Game = {
 						requires: upgrade.requires,
 						isDone: (id) => Game.upgradesById[id]?.purchased,
 						lookupName: (id) => Game.upgradesById[id]?.name
-					});
+					},label);
 
 					list.appendChild(btn);
 				}
@@ -1898,12 +1906,17 @@ const Game = {
 					if (!unlocked && !teased) continue;
 
 					const cost = Game.buildingCost(building);
+					building.cost = cost;
+					const label = {
+						name: `${building.name} x${building.owned}`,
+						cost: building.cost,
+						desc: building.desc,
 
+					}
 					const btn = Game.renderShopItem(building, {
 						unlocked: unlocked,
 						iconSize: unlocked ? 64 : 32,
-						mainLabel: (b) =>
-							`${b.name} x${b.owned} (${cost} fish)`, // stackable, so show owned count
+						
 						affordable: Game.currentFish >= cost,
 						onBuy: (b) => Game.buyBuilding(b.id),
 						dataType: "building",
@@ -1911,7 +1924,7 @@ const Game = {
 						isDone: (id) => Game.upgradesById[id]?.purchased || Game.buildingsById[id]
 							?.owned > 0,
 						lookupName: (id) => Game.upgradesById[id]?.name || Game.buildingsById[id]?.name
-					});
+					},label);
 
 					list.appendChild(btn);
 				}
@@ -1934,8 +1947,9 @@ const Game = {
 			const panel = this.panels[id];
 			panel.el = getEle(id + "Container");
 			panel.toggleImg = getEle(id + "Toggle");
-			if (panel.build) panel.build(panel.el); // <-- initial render
+			if (panel.build) panel.build(panel.el);
 		}
+		Game.updateShopGlow();
 	},
 
 	refreshPanel: function(id) {
@@ -1984,6 +1998,7 @@ const Game = {
 				}
 			}
 		}
+		Game.updateShopGlow();
 	},
 	// UPGRADES 
 	
@@ -2018,7 +2033,7 @@ const Game = {
 
 
 	},
-	renderShopItem: function(item, opts) {
+	renderShopItem: function(item, opts,labelText) {
 		const btn = document.createElement("button");
 		btn.classList.add("shopBtn");
 		btn.dataset.itemId = item.id;
@@ -2026,20 +2041,20 @@ const Game = {
 
 		if (opts.unlocked) {
 			btn.appendChild(Game.renderIcon(item.icon.sheet, item.icon.col, item.icon.row, opts.iconSize));
-			var label = document.createElement('div');
-			label.className = "shopItem";
+			var labelDiv = document.createElement('div');
+			labelDiv.className = "shopItem";
 			console.log(item)
-			label.innerHTML = `
-				<span class="shopItemText">${item.name}</span>
-				<span${item["desc"] || "A really cool item"}</span>
-				<span>${item.cost} Fish</span>
+			labelDiv.innerHTML = `
+				<span class="shopItemText">${labelText.name}</span>
+				<span${labelText.desc || "A really cool item"}</span>
+				<span>${labelText.cost} Fish</span>
 				`;
 			/*
 			const label = document.createElement("span");
 			label.textContent = item.name;
 			//label.textContent = opts.mainLabel(item);
 			*/
-			btn.appendChild(label);
+			btn.appendChild(labelDiv);
 
 			btn.classList.remove("locked");
 			btn.disabled = !opts.affordable;
@@ -2069,13 +2084,54 @@ const Game = {
 
 		Game.currentFish -= upgrade.cost;
 		upgrade.purchased = true;
-		//if (upgrade.onBuy) upgrade.onBuy(upgrade); // still used for non-stat side effects, e.g. unlocking a fish
 
-		Game
-			.syncUpgradeStatModifiers(); // recomputes fishPerClick / fishPerSecMult from every purchased upgrade's `effects`
+		Game.syncUpgradeStatModifiers();
 		Game.updateFishDisplay();
-		Game.refreshPanel("upgrade");
+		Game.refreshPanel(upgrade.shop === "cultist" ? "cultist" : "upgrade");
 		Game.fishDirty = true;
+		Game.updateShopGlow();
+	},
+
+	hasAffordableShopUpgrade: function(shopId) {
+		return Game.getShopUpgrades(shopId).some(u =>
+			!u.purchased && Game.isUpgradeUnlocked(u) && Game.currentFish >= u.cost
+		);
+	},
+	hasAffordableBuilding: function() {
+		return Game.buildings.some(b =>
+			Game.isBuildingUnlocked(b) && Game.currentFish >= Game.buildingCost(b)
+		);
+	},
+	hasNewAffordableBuilding: function() {
+		return Game.buildings.some(b =>
+			Game.isBuildingUnlocked(b) && b.owned === 0 && Game.currentFish >= Game.buildingCost(b)
+		);
+	},
+
+	updateShopGlow: function() {
+		const checks = {
+			upgrade: {
+				glow: Game.hasAffordableShopUpgrade("upgrade"),
+				icon: Game.hasAffordableShopUpgrade("upgrade")
+			},
+			cultist: {
+				glow: Game.hasAffordableShopUpgrade("cultist"),
+				icon: Game.hasAffordableShopUpgrade("cultist")
+			},
+			building: {
+				glow: Game.hasAffordableBuilding(),
+				icon: Game.hasNewAffordableBuilding() // only NEW, unowned buildings trigger the icon
+			}
+		};
+
+		for (const panelId in checks) {
+			const panel = Game.panels[panelId];
+			if (!panel || !panel.toggleImg) continue;
+
+			const { glow, icon } = checks[panelId];
+			panel.toggleImg.classList.toggle("shopGlow", glow);
+
+		}
 	},
 	// BUILDINGS
 	buildings: [],
@@ -2363,7 +2419,7 @@ const Game = {
 		const cappedSeconds = Math.min(elapsedSeconds, Game.maxOfflineSeconds);
 		const gained = Game.fishPerSecond * cappedSeconds * Game.offlineEfficiency;
 
-		if (gained > 0) {
+		if (Math.floor(gained) > 0) {
 			Game.gainFish(gained);
 			Game.showOfflinePopup(gained, cappedSeconds, wasCapped);
 		}
@@ -2793,7 +2849,7 @@ Game.addBuilding({
 // UPGRADE DEFS
 
 /////////////////////////////////
-// TODO: TIERED UPGRADES
+
 ///////////////////////////////////////
 
 Game.addUpgrade({
