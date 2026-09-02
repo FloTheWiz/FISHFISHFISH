@@ -1846,10 +1846,10 @@ const Game = {
                 panel.toggleImg.style.zIndex = "5";
 
                 // Store the offset from top or bottom in case we need it (like mobile UI changes)
-                if (panel.toggleImg.style.bottom){
+                if (panel.toggleImg.style.bottom && panel.toggleImg.style.bottom!="auto"){
                     panel.temp = {"top":0,offsetY:panel.toggleImg.style.bottom};
                 }
-                if (panel.toggleImg.style.top){
+                if (panel.toggleImg.style.top && panel.toggleImg.style.top!="auto"){
                     panel.temp = {"top":1,offsetY:panel.toggleImg.style.top};
                 }
 
