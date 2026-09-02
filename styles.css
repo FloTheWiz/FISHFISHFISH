@@ -134,7 +134,7 @@ body {
     height: 100%;
     box-sizing: border-box;
     padding: 0px 16px 16px;
-    background-image: url('https://orteil.dashnet.org/cookieclicker/img/darkNoise.jpg');
+    background-color: #212121;
     color: #eee;
     display: flex;
     flex-direction: column;
