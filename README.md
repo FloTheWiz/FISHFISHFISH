@@ -1,4 +1,4 @@
-# FISH-FISH-FISH
+# FISHFISHFISH
 An idle / incremental game :)
 
 This is far from finished, but feel free to check in on progress
