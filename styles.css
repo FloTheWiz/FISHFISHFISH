@@ -185,6 +185,9 @@ body {
 .upgradeBorder{
     background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/borderharbor.png');
 }
+.cultistBorder{
+    background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/cultistborder.png');
+}
 .panelList {
     display: flex;
     flex-direction: column;
