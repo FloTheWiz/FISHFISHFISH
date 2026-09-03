@@ -1367,8 +1367,8 @@ const Game = {
 		// Draw Player
 		const playerSheet = Game.imgs["flo_chars"];
 		const testData = {
-			"char": 8,
-			"costume": 2
+			"char": 0,
+			"costume": 0
 		};
 
 		if (playerSheet.complete) {
