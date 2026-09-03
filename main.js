@@ -3,7 +3,7 @@ FISH FISH FISH MAIN.JS
 
 Started 28/08/2026
 
-This started life as a Cookie Clicker Mod and turns out I just wanted to make a whole new game. 
+This started life as a Cookie Clicker Mod and turns out I just wanted to make a whole new game.
 Many thanks to Orteil for the inspiration, check it out at: https://orteil.dashnet.org/cookieclicker/
 */
 function getEle(what) {
@@ -42,7 +42,7 @@ function colorToRgb(color) {
 			g: Number(match[2]),
 			b: Number(match[3])
 		};
-	
+
 	throw new Error(`Invalid color: ${color}`);
     }
 }
@@ -124,7 +124,7 @@ function drawFromSheet(ctx, sheet, col, row, tileSize, dx, dy, scale = 1, flipX 
 
 
 
-////// GAME ////// 
+////// GAME //////
 const Game = {
 	canvas: null,
 	ctx: null,
@@ -160,7 +160,7 @@ const Game = {
 	saveToastEl: null,
 	saveToastTimeout: null,
 
-	// RESIZE, HOOK, 
+	// RESIZE, HOOK,
 	resize: function() {
 		if (!Game.canvas) return;
 
@@ -195,16 +195,16 @@ const Game = {
 		}
 	},
 
-	// BOOT 
+	// BOOT
 	boot: function() {
 		Game.hook();
 		Game.resize();
-		Game.load(); 
+		Game.load();
 
 		window.addEventListener("resize", Game.resize);
 		document.addEventListener("visibilitychange", Game.handleVisibilityChange);
 		window.addEventListener("beforeunload", () => Game.save(
-			false)); 
+			false));
 
 		Game.bootSprites();
 		Game.setupParticlePool();
@@ -225,7 +225,7 @@ const Game = {
 
 		if (isPaused) {
 			Game.save(); // snapshot state + lastSaveTime the moment we go away
-		} else { 
+		} else {
 			Game.lastTime = null; // forces loop()'s existing "first frame" guard, so we don't get a huge dt
 			const elapsed = (Date.now() - Game.lastSaveTime) / 1000;
 			Game.applyOfflineProgress(elapsed);
@@ -280,13 +280,14 @@ const Game = {
 		Game.drawBG();
 		Game.drawSkyBody();
 		Game.cloudManager.draw(Game.ctx);
+		Game.seagullManager.draw(Game.ctx);
 		Game.drawWater(dt, 3.0, 0.1,false);
 		Game.drawParticles();
-		
+
 
 		Game.drawBoat(dt); // Draw boat behind both waves
 		Game.drawWater(dt, 2.0, 0.3,false);
-		
+
 		Game.drawFish();
 		Game.drawWater(dt, 1.0, 0.5,false);
 		return;
@@ -300,15 +301,15 @@ const Game = {
 		Game.ascension.update(dt);
 		return;
 		}
-		
+
 		this.updateBoat(dt);
 		this.updateWeatherBlend(dt);
 		this.updateDayNight(dt);
 		this.updateSpecialWeather(dt);
 		this.updateSkyBody();
 		this.cloudManager.update(dt);
+		this.seagullManager.update(dt);
 		},
-
 	tick: function() {
 		if (Game.paused || Game.isAscending) return;
 		Game.checkFishSpawn();
@@ -317,8 +318,9 @@ const Game = {
 		Game.checkUpdateWeather();
 		Game.checkOceanEvent();
 		Game.specialWeatherChanceRoll();
-        Game.updateDocumentTitle();
-        Game.checkAchievements();
+		Game.seagullManager.trySpawn();
+		Game.updateDocumentTitle();
+		Game.checkAchievements();
 	},
     updateDocumentTitle: function() {
         const fishCount = Game.currentFish;
@@ -383,8 +385,8 @@ const Game = {
 	// Panels do not use display: block, therefore doing display: block for showing them does not work.
 	// The bottom of the sea doesn't blend into the top of the ascend canvas, there's a hard edge, despite the fact that they are the same color. This is because the ascend canvas is not drawn until after the main canvas is drawn, so it draws over it. The solution is to draw the ascend canvas first, then draw the main canvas over it, and then move the main canvas up and the ascend canvas down to create the effect of ascending.
 	// Can canvas gradients do opacity? I think the answer is no, but I should check. If they can, then I can make the water gradient fade to transparent at the bottom, and then the ascend canvas will show through. This will make the transition much smoother.
-	// If not... who fuckin knows... 
-	
+	// If not... who fuckin knows...
+
 	// Okay. Here's how we're gonna do this
 	ascension: {
 		state: "idle", // idle -> sinking -> sunk -> rising -> idle
@@ -418,7 +420,7 @@ const Game = {
 			<button id="reincarnateButton" style="width:40vw;" class="shopBtn" onclick="Game.ascension.reincarnate()">ASCEND FROM THE DEPTHS</button>
 			`;
 			getEle('ascendTextSub').textContent = `You earned: ${Math.floor(Game.fishAllTime)} total Fish!`
-			
+
 		},
 
 		reincarnate() {
@@ -440,7 +442,7 @@ const Game = {
 				this.timer += dt * 1000;
 			}
 			const t = Math.min(this.timer / this.duration, 1);
-			
+
 			if (this.state === "sinking") {
 				this.progress = t;
 				this.updateCanvases();
@@ -482,7 +484,7 @@ const Game = {
 			//const top = rgbToObj(colors.waterShallow);
 			const col = rgbToObj(lerpColor(colors.waterDeep,"#0c0714", t));
 
-			grad.addColorStop(0, `rgba(${col.r}, ${col.g}, ${col.b}, ${t})`); 
+			grad.addColorStop(0, `rgba(${col.r}, ${col.g}, ${col.b}, ${t})`);
 
 
 			grad.addColorStop(1, `rgba(${col.r}, ${col.g}, ${col.b}, ${t*1.2})`);
@@ -515,14 +517,14 @@ const Game = {
 			text.innerHTML = "<h2>ANOTHER DAY BEGINS</h2>"
 			ele.appendChild(text);
 			setTimeout(() => {
-				ele.removeChild(text);	
+				ele.removeChild(text);
 			}, 1500)
 		}
 	},
-	
+
 	hideAscendUI: function(){
 		const ascui = getEle("ascendUI");
-		ascui.classList.remove('visible'); 
+		ascui.classList.remove('visible');
 	},
 	showAscendUI: function(){
 		const ascui = getEle("ascendUI");
@@ -584,15 +586,26 @@ const Game = {
 			1;
 	},
 	handleClick: function(e) {
-		if (Game.paused) return;
-		if (!Game.boat.isHovered) return;
-		Game.boat.scale = 0.88;
-		Game.catchFish(e);
-		Game.updateShopAffordability();
+    if (Game.paused) return;
 
-	},
+    const rect = Game.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-	// Catching 
+    const seagull = Game.seagullManager.getClickedSeagull(x, y);
+    if (seagull) {
+        Game.seagullManager.clickSeagull(seagull);
+        return;
+    }
+
+    if (!Game.boat.isHovered) return;
+    Game.boat.scale = 0.88;
+    Game.catchFish(e);
+    Game.updateShopAffordability();
+
+},
+
+	// Catching
 	catchFish: function(e) {
 		Game.gainFish(Game.fishPerClick);
 
@@ -609,12 +622,12 @@ const Game = {
 	},
 
 	// WEATHER
-	// Weather types 
-	// Clear <--> Cloudy <--> Rainy <--> Stormy 
+	// Weather types
+	// Clear <--> Cloudy <--> Rainy <--> Stormy
 	// Special Weathers:
-	// Solar Eclipse, 
+	// Solar Eclipse,
 	// Times of Day:
-	// Day, Sunset, Night, Sunrise ?? 
+	// Day, Sunset, Night, Sunrise ??
 	// Sun / Moon for each?
 	weather: {
 		current: "clear",
@@ -672,9 +685,9 @@ const Game = {
 	weatherNextCheck: null,
 	baseWeatherChance: 0.5,
 	weatherChance: 0.5,
-	WEATHER_INTERVAL_MIN: 0.1, 
-	WEATHER_INTERVAL: 0.1, 
-	WEATHER_BLEND_SECONDS: 20, 
+	WEATHER_INTERVAL_MIN: 0.1,
+	WEATHER_INTERVAL: 0.1,
+	WEATHER_BLEND_SECONDS: 20,
 
 	// Called from tick() every ~1s.
 	checkUpdateWeather: function() {
@@ -683,13 +696,13 @@ const Game = {
 		if (!this.weatherNextCheck) {
             console.log("Initial weather");
             var nextWeatherCheck = this.WEATHER_INTERVAL_MIN + Math.random() * this.WEATHER_INTERVAL;
-            console.log(`Set for ${nextWeatherCheck} minutes`); 
+            console.log(`Set for ${nextWeatherCheck} minutes`);
 			this.weatherNextCheck = addMinutes(now, nextWeatherCheck);
 			return;
 		}
         //console.log(`Weather check initiate, aiming for ${this.weatherNextCheck}`);
 		if (now >= this.weatherNextCheck) {
-            
+
 			if (!this.weather.target) { // don't stack a fresh roll on top of an in-progress blend
 				if (Math.random() < this.weatherChance) {
 					console.log("New weather time?");
@@ -699,7 +712,7 @@ const Game = {
 					this.weatherChance += 0.1; // more likely next time
 				}
 			}
-            console.log(`Set for ${nextWeatherCheck} minutes`); 
+            console.log(`Set for ${nextWeatherCheck} minutes`);
 			this.weatherNextCheck = addMinutes(now, this.WEATHER_INTERVAL_MIN + Math.random() * this
 				.WEATHER_INTERVAL);
 		}
@@ -913,7 +926,7 @@ const Game = {
 			waterDeep = lerpColor(waterDeep, special.waterTint, sb * 0.3);
 		}
 
-		// Why are these NaN 
+		// Why are these NaN
 		if (Game.ascension.state !== "idle") {
 			//console.log(Game.ascension.timer / 1000);
 			waterDeep = lerpColor(waterDeep, "#080106", Math.min(0.9, Game.ascension.progress / 1000));
@@ -965,7 +978,7 @@ const Game = {
 	updateGameText: function() {
 		updateTextColor(Game.displayText, Game.textColors.dark, Game.textColors.light);
 		updateTextColor(Game.fishPerSecDisplay, Game.textColors.dark, Game.textColors.light);
-	},	
+	},
 
 	drawSkyBody: function() {
 		const sheet = Game.imgs["flo_sky_bodies"];
@@ -1002,7 +1015,7 @@ const Game = {
 		dn.progress += dt / dn.cycleSeconds;
 		if (dn.progress >= 1) dn.progress -= 1;
 		var isDay = dn.progress < 0.5;
-		
+
 		if (isDay != dn.isDay) {
 			dn.isDay = isDay;
 			Game.fishDirty = true;
@@ -1030,8 +1043,8 @@ const Game = {
 		{
 				col: 1,
 				row: 1
-		}], 
-		tileWidth: 64, 
+		}],
+		tileWidth: 64,
 		tileHeight: 64, //
 
 		spawnChancePerSecond: {
@@ -1239,7 +1252,7 @@ const Game = {
 		this.boat.tilt += (this.boat.targetTilt - this.boat.tilt) * 0.05 * dt;
 
 	},
-	/// BOAT DRAWING 
+	/// BOAT DRAWING
 	drawBoat: function(dt) {
 
 		const wave =
@@ -1257,7 +1270,7 @@ const Game = {
 		this.ctx.translate(Game.centerX-(boatFront.width)/2, y);
 		this.ctx.rotate(this.boat.tilt + (wave /75)); // Combine hover tilt + wave roll
 		this.ctx.scale(this.boat.scale, this.boat.scale);
-		
+
 		if (boatBack.complete) {
 			Game.ctx.drawImage(
 				boatBack,
@@ -1313,7 +1326,7 @@ const Game = {
 			Game.ctx.drawImage(
 				boatFront,
 				-boatFront.width / 2,
-				-boatFront.height*2, 
+				-boatFront.height*2,
 				boatFront.width*2,
 				boatFront.height*2
 			);
@@ -1403,12 +1416,12 @@ const Game = {
 		const params = Game.getWaveParams();
 
 		ctx.globalAlpha = Math.min(1, 0.35*intensity);
-		
+
 		const fgCol = colorToRgb(lerpColor(colors.waterShallow, "#1c2a6e", s));
 
 		// LAYER 1: background wave (bigger wavelength, slower, softer points)
 		const bgWaterGradient = ctx.createLinearGradient(0, Game.waterLine - 10, 0, height);
-		
+
 		bgWaterGradient.addColorStop(0, rgbToRgba(fgCol, Math.min(1,0.4*intensity)));
 		bgWaterGradient.addColorStop(1, rgbToRgba(colorToRgb(colors.waterDeep),Math.min(1,0.6*intensity)));
 
@@ -1455,7 +1468,8 @@ const Game = {
 		"flo_portraits": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/portraits3x2.png",
 		"flo_icons_ui": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/fish_spritesheetx2.png",
 		"flo_sky_bodies": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/suns.png",
-		"flo_clouds": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/normalclouds.png"
+		"flo_clouds": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/normalclouds.png",
+		"flo_seagull": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/seagull.png"
 	},
 
 	imgs: {},
@@ -1573,9 +1587,127 @@ const Game = {
 			);
 		}
 	},
+	// SEAGULLS N GOLDEN FISH
+	seagullManager: {
+		active: [],
+		unlocked: true,
+		maxActive: 3,
+		tileSize: 32,
+		flapFrameTime: 0.25,
+		spawnChancePerTick: 0.1,
 
+		trySpawn: function() {
+			if (!this.unlocked) return;
+			if (this.active.length >= this.maxActive) return;
+			if (Math.random() < this.spawnChancePerTick) this.spawn();
+		},
+
+		spawn: function() {
+			const direction = Math.random() < 0.5 ? -1 : 1;
+			const startX = direction === 1 ? -this.tileSize * 2 : Game.canvas.width + this.tileSize * 2;
+			const hoverY = Game.waterLine - 140 - Math.random() * 40;
+			const hoverX = Game.centerX + (Math.random() * 160 - 80);
+
+			this.active.push({
+				x: startX,
+				y: hoverY - 60, // swoops in
+				hoverX,
+				hoverY,
+				direction,
+				state: "entering", // entering -> hovering -> leaving -> splat
+				flipped: -direction,
+				hoverDuration: 5 + Math.random() * 3,
+				timer: 0,
+				frame: 0,
+				flapFrameTime: this.flapFrameTime+Math.random()*0.25,
+				frameTimer: 0,
+				speed: 130 + Math.random() * 120,
+				splatTimer: 0
+			});
+		},
+
+		update: function(dt) {
+			for (let i = this.active.length - 1; i >= 0; i--) {
+				const g = this.active[i];
+
+				if (g.state !== "splat") {
+					g.frameTimer += dt;
+					if (g.frameTimer >= g.flapFrameTime) {
+						g.frameTimer = 0;
+						g.frame = g.frame === 0 ? 1 : 0;
+					}
+				}
+
+				if (g.state === "entering") {
+					const dx = g.hoverX - g.x;
+					const dy = g.hoverY - g.y;
+					const dist = Math.hypot(dx, dy);
+					if (dist < 6) {
+						g.state = "hovering";
+						g.timer = 0;
+					} else {
+						g.x += (dx / dist) * g.speed * dt;
+						g.y += (dy / dist) * g.speed * dt;
+					}
+				} else if (g.state === "hovering") {
+					g.flipped = Math.random() < 0.05 ? !g.flipped : g.flipped;
+					g.timer += dt;
+					g.y = g.hoverY + Math.sin(Game.time * 3 + i) * 4; // gentle bob
+					g.x += Math.sin(Game.time*0.05+i) * 0.1;
+					if (g.timer >= g.hoverDuration) g.state = "leaving";
+				} else if (g.state === "leaving") {
+					g.flipped = -g.direction;
+					g.x += g.direction * g.speed * dt;
+					g.y -= 20 * dt; // climbs away as it leaves
+					const offscreen = g.x < -this.tileSize * 2 || g.x > Game.canvas.width + this.tileSize * 2;
+					if (offscreen) this.active.splice(i, 1);
+				} else if (g.state === "splat") {
+					g.splatTimer += dt;
+					if (g.splatTimer >= 0.75) this.active.splice(i, 1);
+				}
+			}
+		},
+
+		draw: function(ctx) {
+			const sheet = Game.imgs["flo_seagull"];
+			if (!sheet || !sheet.complete) return;
+
+			for (const g of this.active) {
+				const col = g.state === "splat" ? 2 : g.frame;
+				drawFromSheet(ctx, sheet, col, 0, this.tileSize, g.x - this.tileSize, g.y - this.tileSize, 2, g.flipped==1);
+			}
+		},
+		getClickedSeagull: function(x, y) {
+			const drawSize = this.tileSize * 2;
+			const pad = 12; // extra forgiveness for seagulls
+			const half = drawSize / 2 + pad;
+
+			for (let i = this.active.length - 1; i >= 0; i--) {
+				const g = this.active[i];
+				if (g.state === "splat") continue; // already caught, ignore further clicks
+
+				const left = g.x - half, right = g.x + half;
+				const top = g.y - half, bottom = g.y + half;
+				if (x >= left && x <= right && y >= top && y <= bottom) return g;
+			}
+			return null;
+		},
+
+		clickSeagull: function(g) {
+			const bankReward = Game.currentFish * 0.15;
+			const fpsReward = Game.fishPerSecond * 60 * 5;
+			var reward = Math.min(bankReward, fpsReward);
+			if (reward == 0) reward = 25;
+			Game.gainFish(reward);
+
+			g.state = "splat";
+			g.splatTimer = 0;
+
+			Game.spawnParticle(g.x, g.y - 20, `+${Math.floor(reward)}`);
+		}
+	},
 	/// UI /////////////////////////////////////////////
-	// Turns out, a lot of an idle game is in the UI. 
+	// Turns out, a lot of an idle game is in the UI.
 	// this is godot slander btw
 	moods: [
 
@@ -1762,7 +1894,7 @@ const Game = {
 					const btn = Game.renderShopItem(building, {
 						unlocked: unlocked,
 						iconSize: unlocked ? 64 : 32,
-						
+
 						affordable: Game.currentFish >= cost,
 						onBuy: (b) => Game.buyBuilding(b.id),
 						dataType: "building",
@@ -1788,7 +1920,7 @@ const Game = {
 				const stats = document.createElement("div");
 				stats.id = "bagStats";
 				div.appendChild(stats);
-				// TODO TODO TODO 
+				// TODO TODO TODO
 				const achievements = document.createElement("div");
 				achievements.id = "bagAchievements";
 				div.appendChild(achievements);
@@ -1853,22 +1985,23 @@ const Game = {
                     panel.temp = {"top":1,offsetY:panel.toggleImg.style.top};
                 }
 
-                
+
                 if (smallScreen){
                     panel.toggleImg.style.top = "auto";
                     panel.toggleImg.style.bottom = "16px";
-                    offsetX = "16px";
+                    offsetX = 16; // i had my first "type mismatch" here.
                     }
                 else {
                     offsetX = panelSize*1.1;
                     }
                 }
-                
+
             if (!panel.open) {
+				if (!smallScreen) offsetX = 16;
                 panel.toggleImg.style.zIndex = "1";
                 console.log(panel.temp);
                 if (panel.temp){
-                    if (panel.temp.top) 
+                    if (panel.temp.top)
                         {
                             panel.toggleImg.style.top = panel.temp.offsetY;
                             panel.toggleImg.style.bottom = "auto";
@@ -1880,7 +2013,7 @@ const Game = {
                         }
                 }
             }
-            
+
 			//const offset = panel.open ? panel.el.getBoundingClientRect().width- : 16;
 
 			if (panel.side === "right") {
@@ -1923,8 +2056,8 @@ const Game = {
 		}
 		Game.updateShopGlow();
 	},
-	// UPGRADES 
-	
+	// UPGRADES
+
 	upgrades: [],
 	upgradesById: {},
 	addUpgrade: function(data) {
@@ -2203,7 +2336,7 @@ const Game = {
 			...Game.baseStats
 		};
 		const buildingRateBonus = {}; // building id -> summed bonus amount
- 
+
 		for (const mod of Game.statModifiers) {
 			if (mod.stat.startsWith("building:")) {
 				const buildingId = mod.stat.split(":")[1];
@@ -2212,21 +2345,21 @@ const Game = {
 				stats[mod.stat] = (stats[mod.stat] ?? 0) + mod.amount;
 			}
 		}
- 
+
 		Game.baseFishPerClick = stats.fishPerClick;
 		Game.baseFishPerSecMult = stats.fishPerSecMult;
 		Game.dayPower = stats.dayPower;
 		Game.nightPower = stats.nightPower;
 		Game.eclipsePower = stats.eclipsePower;
 		Game.cookieStormPower = stats.cookieStormPower;
- 
+
 		for (const building of Game.buildings) {
 			building.rateMult = 1 + (buildingRateBonus[building.id] ?? 0);
 		}
- 
+
 		Game.applyEnvironmentalStats(); // folds day/night/eclipse/cookie-storm buffs on top -> final fishPerClick/fishPerSecMult
 	},
- 
+
 	// Called every frame (day/night progress and special-weather blend both change continuously,
 	// so this can't just run once per purchase like syncUpgradeStatModifiers). Reads the meta
 	// "power" stats above, checks which conditions are currently true, and multiplies them onto
@@ -2235,7 +2368,7 @@ const Game = {
 		let clickMult = 1;
 		let secMult = 1;
 		const buffs = [];
- 
+
 		if (Game.dayNight.isDay && Game.dayPower > 0 && !Game.specialWeather.active) {
 			clickMult *= 1 + Game.dayPower;
 			buffs.push({
@@ -2250,7 +2383,7 @@ const Game = {
 				label: `☾ Moonlit Catch +${Math.round(Game.nightPower * 100)}% Fish Per Second`
 			});
 		}
- 
+
 		if (Game.specialWeather.active === "solarEclipse" && Game.eclipsePower > 0) {
 			const power = Game.eclipsePower * Game.specialWeather.blend; // fades in/out with the eclipse itself
 			clickMult *= 1 + power;
@@ -2259,7 +2392,7 @@ const Game = {
 				label: `🌑 Eclipse Frenzy +${Math.round(power * 100)}%`
 			});
 		}
- 
+
 		if (Game.specialWeather.active === "cookieStorm" && Game.cookieStormPower > 0) {
 			const power = Game.cookieStormPower * Game.specialWeather.blend;
 			secMult *= 1 + power;
@@ -2268,20 +2401,20 @@ const Game = {
 				label: `🍪 Cookie Rush +${Math.round(power * 100)}%`
 			});
 		}
- 
+
 		Game.fishPerClick = Game.baseFishPerClick * clickMult;
 		Game.fishPerSecMult = Game.baseFishPerSecMult * secMult;
 		Game.activeBuffs = buffs;
 		Game.fishDirty = true; // fishPerSecMult feeds into fishPerSecond, so force a recalc
 		Game.updateBuffDisplay();
 	},
- 
+
 	// Rebuilds just the upgrade-sourced slice of statModifiers from what's currently purchased.
 	// Anything else that pushes a modifier in later (temp buffs, prestige, events, whatever)
 	// just needs to tag it fromUpgrade: false (or omit it) so it survives this rebuild.
 	syncUpgradeStatModifiers: function() {
 		Game.statModifiers = Game.statModifiers.filter(m => !m.fromUpgrade);
- 
+
 		for (const upgrade of Game.upgrades) {
 			if (!upgrade.purchased || !upgrade.effects) continue;
 			if (upgrade.onBuy) upgrade.onBuy(); // onbuy fires AGAIN just in case lol
@@ -2294,10 +2427,10 @@ const Game = {
 				});
 			}
 		}
- 
+
 		Game.recalcStats();
 	},
- 
+
 	/////// CALCULATING FISH PER SECOND
 	fishPerSecond: 0,
 	fishPerSecMult: 1,
@@ -2305,15 +2438,15 @@ const Game = {
 	recalcGains: function() {
 		if (!this.fishDirty) return;
 		var newFips = 0;
- 
+
 		for (const building of Game.buildings) {
 			if (!building) continue;
 			var rate = building.baseRate * building.rateMult;
 			newFips += rate * building.owned;
 		}
- 
-		newFips *= Game.fishPerSecMult; 
- 
+
+		newFips *= Game.fishPerSecMult;
+
 		this.fishPerSecond = newFips;
 		this.fishDirty = false;
 		this.showFips();
@@ -2439,7 +2572,7 @@ const Game = {
 	},
 
 	applyOfflineProgress: function(elapsedSeconds) {
-		if (!elapsedSeconds || elapsedSeconds < 10) return; // ignore tiny gaps 
+		if (!elapsedSeconds || elapsedSeconds < 10) return; // ignore tiny gaps
 		if (Game.fishPerSecond <= 0) return;
 		const wasCapped = elapsedSeconds > Game.maxOfflineSeconds;
 		const cappedSeconds = Math.min(elapsedSeconds, Game.maxOfflineSeconds);
@@ -2559,9 +2692,9 @@ const Game = {
         Game.fishDirty = true;
 
 		// Clear Fish
-		
+
     },
-    // Achievements 
+    // Achievements
 
     achievements: [],
     achievementsById: {},
@@ -2597,7 +2730,7 @@ const Game = {
 	buffDisplayEl: null,
 	ensureBuffDisplay: function() {
 		if (Game.buffDisplayEl) return Game.buffDisplayEl;
- 
+
 		const el = document.createElement("div");
 		el.id = "activeBuffs";
 		Object.assign(el.style, {
@@ -2629,7 +2762,7 @@ const Game = {
 			}
 			return;
 		}
- 
+
 		const el = Game.ensureBuffDisplay();
 		el.innerHTML = "";
 		for (const buff of Game.activeBuffs) {
@@ -2656,7 +2789,7 @@ const swimDrift = function(fish, dt) {
 	) * 5;
 }
 /////////////////////////
-//FISH DEFS 
+//FISH DEFS
 Game.addAchievement({
     id: "ach_fisherman",
     name: "Fisherman",
@@ -2904,7 +3037,7 @@ Game.addUpgrade({
 	purchased: false,
 	effects: {
 		fishPerClick: 1
-	} 
+	}
 });
 Game.addUpgrade({
 	id: "bobberUp2",
@@ -2912,7 +3045,7 @@ Game.addUpgrade({
 	desc: "Catch 3 fish per click instead of 2.",
 	flavor: "",
 	cost: 100,
-	requires: ["bobberUp1"], 
+	requires: ["bobberUp1"],
 	icon: {
 		sheet: "flo_icons_ui",
 		col: 1,
@@ -2975,7 +3108,7 @@ Game.addUpgrade({
 	},
 	onBuy: function() {
 		Game.allFishById["flo_seahorse"].unlocked = true;
-	} 
+	}
 });
 Game.addUpgrade({
 	id: "fisherBag",
@@ -3016,7 +3149,7 @@ Game.addUpgrade({
 	}
 });
 
-// OCEAN EVENTS 
+// OCEAN EVENTS
 Game.addOceanEvent({
 	id: "planktonBloom",
 	name: "Plankton Bloom",
