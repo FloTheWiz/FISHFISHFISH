@@ -51,7 +51,8 @@
     <!-- Right side: Upgrades -->
     <div class="t panelToggle right" id="upgradeToggle" style="top:16px;">
         <button onclick="Game.togglePanel('upgrade');"><img class="toggleImg"
-                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png"></button>
+                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/shop.png">
+            </button>
     </div>
     <div class="t panelContainer panelRight" id="upgradeContainer">
         <div class="panelBorder"></div>
@@ -60,8 +61,7 @@
     <!-- Right Middle  Bag -->
     <div class="t panelToggle" id="bagToggle" style="right:16px; top:40vh;">
         <button onclick="Game.togglePanel('bag');">
-            <img class="toggleImg"
-                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png">
+            <div class="toggleImg" id="bagButton"></div>
         </button>
     </div>
     <div class="t panelContainer panelRight" id="bagContainer"></div>
@@ -69,8 +69,7 @@
     <!-- Bottom-right: Settings -->
     <div class="t panelToggle" id="settingsToggle" style="right:16px; bottom:16px; top:auto;">
         <button onclick="Game.togglePanel('settings');">
-            <img class="toggleImg"
-                src="https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/anchorx2.png">
+            <div class="toggleImg" id="settingsButton"></div>
         </button>
     </div>
     <div class="t panelContainer panelRight" id="settingsContainer"></div>

@@ -36,7 +36,6 @@ body {
 	left: 0;
 	width: 100vw;
 	image-rendering: pixelated;
-	image-rendering: crisp-edges;
 	border: none;
 }
 
@@ -130,7 +129,7 @@ body {
 .toggleImg {
     width: 64px;
     height: 64px;
-    
+    background-position: 0px 0px;
     image-rendering: pixelated;
     filter: drop-shadow(2px 2px 2px #11111188);
 }
@@ -487,6 +486,19 @@ button.locked .spriteIcon {
 
 #cultistButton {
     background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/books0.1.png');
+    background-position: 128px 128px;
+    display: inline-block;
+    height:64px;
+    width:64px;
+}
+#bagButton {
+    background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/bag.png');
+    display: inline-block;
+    height:90px;
+    width:64px;
+}
+#settingsButton {
+     background-image: url('https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/settings.png');
     display: inline-block;
     height:64px;
     width:64px;

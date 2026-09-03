@@ -282,20 +282,24 @@ const Game = {
 		Game.cloudManager.draw(Game.ctx);
 		Game.seagullManager.draw(Game.ctx);
 		Game.drawWater(dt, 3.0, 0.1,false);
-		Game.drawParticles();
-
-
+		
 		Game.drawBoat(dt); // Draw boat behind both waves
+
+		
+
+		Game.drawParticles();
 		Game.drawWater(dt, 2.0, 0.3,false);
 
 		Game.drawFish();
 		Game.drawWater(dt, 1.0, 0.5,false);
+		Game.rainManager.draw(Game.ctx);
 		return;
 	},
 	update: function(dt) {
 		Game.time += dt;
 		this.updateParticles(dt);
 		this.updateFish(dt);
+		
 		if (Game.fishDirty) Game.recalcGains();
 		if (Game.ascension.state !== "idle") {
 		Game.ascension.update(dt);
@@ -309,6 +313,7 @@ const Game = {
 		this.updateSkyBody();
 		this.cloudManager.update(dt);
 		this.seagullManager.update(dt);
+		this.rainManager.update(dt); 
 		},
 	tick: function() {
 		if (Game.paused || Game.isAscending) return;
@@ -506,7 +511,7 @@ const Game = {
 			if (!sheet.complete) return;
 			ctx.save();
 			ctx.globalAlpha = this.state === "sunk" ? 1 : 0;
-			drawFromSheet(ctx, sheet, 0, 0, 16, w /2, Game.waterLine + h/4, 2, true);
+			drawFromSheet(ctx, sheet, 0, 0, 32, w /2, Game.waterLine + h/4, true);
 			ctx.restore();
 		},
 		doPopup(){
@@ -585,13 +590,19 @@ const Game = {
 			1.03 :
 			1;
 	},
+	clickSide: 0,
 	handleClick: function(e) {
     if (Game.paused) return;
 
     const rect = Game.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-
+	if (x < Game.canvas.width / 2) {
+		Game.clickSide = 1
+	}
+	else {
+		Game.clickSide = 0;
+	}
     const seagull = Game.seagullManager.getClickedSeagull(x, y);
     if (seagull) {
         Game.seagullManager.clickSeagull(seagull);
@@ -750,6 +761,7 @@ const Game = {
 	},
 
 	allSpecialWeathers: {
+
 		solarEclipse: {
 			name: "Solar Eclipse",
 			chance: 0.002,
@@ -846,7 +858,7 @@ const Game = {
 		if (this.activeOceanEvent) console.log(`Ocean event today: ${this.activeOceanEvent.name}`);
 	},
     textColors: {
-        dark:"#222222",
+        dark:"#212123",
         light:"#eeeeee"
     },
 	getEnvColors: function() {
@@ -967,7 +979,7 @@ const Game = {
 			row: 1
 		}
 	},
-	skyBodyTileSize: 64,
+	skyBodyTileSize: 128,
 
 	updateSkyBody: function() {
 		const special = this.specialWeather.active ? this.allSpecialWeathers[this.specialWeather.active] : null;
@@ -1002,7 +1014,7 @@ const Game = {
 		Game.ctx.shadowColor = Game.dayNight.isDay ?
 			'#ffaaaa' :
 			'#aaaaaa';
-		drawFromSheet(Game.ctx, sheet, frame.col, frame.row, size, x - size / 2, y - size / 2,2);
+		drawFromSheet(Game.ctx, sheet, frame.col, frame.row, size, x - size / 2, y - size / 2,1);
 		Game.ctx.restore()
 	},
 	dayNight: {
@@ -1022,7 +1034,75 @@ const Game = {
 			Game.applyEnvironmentalStats();
 		}
 	},
+	rainIntensityByWeather: {
+		clear: 0,
+		cloudy: 0,
+		rainy: 0.55,
+		stormy: 1.0
+	},
+	getRainIntensity: function() {
+		const w = Game.weather;
+		const from = this.rainIntensityByWeather[w.current] ?? 0;
+		const to = w.target ? (this.rainIntensityByWeather[w.target] ?? 0) : from;
+		const t = w.target ? w.blend : 0;
+		return from + (to - from) * t;
+	},
 
+	rainManager: {
+		drops: [],
+		maxDrops: 220,
+		windAngle: 0.25, 
+
+		makeDrop: function() {
+			return {
+				x: Math.random() * (Game.canvas.width + 200) - 100,
+				y: -20,
+				length: 12 + Math.random() * 16,
+				speed: 550 + Math.random() * 300,
+				opacity: 0.2 + Math.random() * 0.3
+			};
+		},
+
+		update: function(dt) {
+			const intensity = Game.getRainIntensity();
+			const targetCount = Math.floor(this.maxDrops * intensity);
+
+			while (this.drops.length < targetCount) {
+				const d = this.makeDrop();
+				d.y = Math.random() * Game.canvas.height; // scatter on spawn so a storm doesn't start with an empty screen
+				this.drops.push(d);
+			}
+			if (this.drops.length > targetCount) {
+				this.drops.length = targetCount; // hard trim; fine since drops re-seed staggered anyway
+			}
+
+			for (const drop of this.drops) {
+				drop.y += drop.speed * dt;
+				drop.x += drop.speed * this.windAngle * dt;
+
+				if (drop.y > Game.waterLine) {
+					Object.assign(drop, this.makeDrop());
+				}
+			}
+		},
+
+		draw: function(ctx) {
+			const intensity = Game.getRainIntensity();
+			if (intensity <= 0) return;
+
+			ctx.save();
+			ctx.strokeStyle = "rgba(200, 220, 235, 0.6)";
+			ctx.lineWidth = 1.5;
+			for (const drop of this.drops) {
+				ctx.globalAlpha = drop.opacity * intensity;
+				ctx.beginPath();
+				ctx.moveTo(drop.x, drop.y);
+				ctx.lineTo(drop.x + this.windAngle * drop.length, drop.y + drop.length);
+				ctx.stroke();
+			}
+			ctx.restore();
+		}
+	},
 	cloudManager: {
 		clouds: [],
 		maxClouds: 40,
@@ -1284,8 +1364,8 @@ const Game = {
 		// Draw Player
 		const playerSheet = Game.imgs["flo_chars"];
 		const testData = {
-			"char": 0,
-			"costume": 0
+			"char": 8,
+			"costume": 2
 		};
 
 		if (playerSheet.complete) {
@@ -1297,13 +1377,13 @@ const Game = {
 				drawFromSheet(
 					Game.ctx,
 					playerSheet,
-					testData.char,
 					testData.costume,
-					16,
+					testData.char,
+					32,
 					8,
-					-50+Game.ascension.timer, // Move player upward during ascension
-					2,
-					true
+					-52+Game.ascension.timer, // Move player upward during ascension
+					1,
+					Game.clickSide,
 				);
 				Game.ctx.restore();
 			} else {
@@ -1311,13 +1391,13 @@ const Game = {
 				drawFromSheet(
 					Game.ctx,
 					playerSheet,
-					testData.char,
 					testData.costume,
-					16,
-					8,
-					-50,
-					2,
-					true
+					testData.char,
+					32,
+					10,
+					-52,
+					1,
+					Game.clickSide,
 				);
 			}
 		}
@@ -1336,7 +1416,7 @@ const Game = {
 	weatherWaveParams: {
 		"clear":  { ampMult: 0.8, freqMult: 1.5, chop: 0.3 },
 		"cloudy": { ampMult: 0.95, freqMult: 1.1, chop: 0.4 },
-		"rainy":  { ampMult: 1.3, freqMult: 1.3, chop: 0.5 },
+		"rainy":  { ampMult: 1.3, freqMult: 1.5, chop: 0.6 },
 		"stormy": { ampMult: 4.0, freqMult: 2.0, chop: 0.9 }
 	},
 
@@ -1464,10 +1544,10 @@ const Game = {
 		"flo_fish": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/fish_spritesheet.png",
 		"flo_boatfront": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-front.png",
 		"flo_boatback": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-back.png",
-		"flo_chars": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/betterchars.png",
+		"flo_chars": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/chars2.png",
 		"flo_portraits": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/portraits3x2.png",
 		"flo_icons_ui": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/fish_spritesheetx2.png",
-		"flo_sky_bodies": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/suns.png",
+		"flo_sky_bodies": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/sunsx2.png",
 		"flo_clouds": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/normalclouds.png",
 		"flo_seagull": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/seagull.png"
 	},
@@ -1521,7 +1601,7 @@ const Game = {
 
 			y: Math.min(Math.max(this.waterLine +
 				definition.yPref +
-				Math.random() * definition.yRange, this.waterLine + 50), this.canvas.height - 30),
+				Math.random() * definition.yRange, this.waterLine + 52), this.canvas.height - 30),
 
 			direction: direction,
 
@@ -1594,7 +1674,7 @@ const Game = {
 		maxActive: 3,
 		tileSize: 32,
 		flapFrameTime: 0.25,
-		spawnChancePerTick: 0.1,
+		spawnChancePerTick: 0.01,
 
 		trySpawn: function() {
 			if (!this.unlocked) return;
@@ -1629,7 +1709,7 @@ const Game = {
 		update: function(dt) {
 			for (let i = this.active.length - 1; i >= 0; i--) {
 				const g = this.active[i];
-
+				// i love state machines
 				if (g.state !== "splat") {
 					g.frameTimer += dt;
 					if (g.frameTimer >= g.flapFrameTime) {
@@ -1774,6 +1854,7 @@ const Game = {
 			toggleImg: null,
 			open: false,
 			npc: "cultist",
+			toggleFunc: function(panel){},
 			build: function(div) {
 				div.innerHTML = "<h2>The Shadow Shop</h2>";
 				const npc = Game.npcs[this.npc];
@@ -1826,6 +1907,9 @@ const Game = {
 			toggleImg: null,
 			open: false,
 			npc: "shopkeeper",
+			toggleFunc: function(panel){
+				panel.toggleImg.style.transform = panel.open ? `rotate(90deg)` : "rotate(0deg)";
+			},
 			build: function(div) {
 				div.innerHTML = "<h2>Upgrades</h2>";
 				const npc = Game.npcs[this.npc];
@@ -1869,6 +1953,9 @@ const Game = {
 			toggleImg: null,
 			open: false,
 			npc: "harbormaster",
+			toggleFunc: function(panel){
+				panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
+			},
 			build: function(div) {
 				div.innerHTML = "<h2>Buildings</h2>";
 				const npc = Game.npcs[this.npc];
@@ -1924,8 +2011,10 @@ const Game = {
 				const achievements = document.createElement("div");
 				achievements.id = "bagAchievements";
 				div.appendChild(achievements);
-
 				div.appendChild(Game.makePanelBorder('bag', this.side));
+			},
+			toggleFunc: function(panel){
+				getEle('bagButton').style.backgroundPosition = panel.open ? `64px 0` : `0 0`;
 			}
 		},
 		settings: {
@@ -1933,6 +2022,9 @@ const Game = {
 			el: null,
 			toggleImg: null,
 			open: false,
+			toggleFunc: function(panel){
+				panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
+			},
 			build: function(div) {
 
 			}
@@ -1968,8 +2060,10 @@ const Game = {
 		panel.el.classList.toggle("open", panel.open);
 
 		if (panel.toggleImg) {
-			panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
-
+			//panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
+			if (panel.toggleFunc) {
+				panel.toggleFunc(panel);
+			}
             const panelSize = 360;
             var offsetX = 0;
             const smallScreen = Game.canvas.width <= panelSize*1.2;
@@ -3134,7 +3228,7 @@ Game.addUpgrade({
 	name: "Cultist's Blessing",
 	desc: "???",
 	cost: 20,
-	requires: ["netUpgrade1"],
+	requires: ["bobberUp1"],
 	icon: {
 		sheet: "flo_icons_ui",
 		col: 9,
