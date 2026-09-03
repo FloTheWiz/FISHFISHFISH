@@ -155,7 +155,10 @@ const Game = {
 	// SAVE STATE
 	SAVE_KEY: "floFishSave",
 	lastSaveTime: 0, // timestamp
-	maxOfflineSeconds: 8 * 60 * 60, // cap offline gains at 8 hours... for NOW >:D
+	maxOfflineHours: 1, // move cap to 1 hour
+	getMaxOfflineSeconds: function(){
+		return Game.maxOfflineHours * 60 * 60;
+	 },
 	offlineEfficiency: 1.0,
 	saveToastEl: null,
 	saveToastTimeout: null,
@@ -2668,8 +2671,9 @@ const Game = {
 	applyOfflineProgress: function(elapsedSeconds) {
 		if (!elapsedSeconds || elapsedSeconds < 10) return; // ignore tiny gaps
 		if (Game.fishPerSecond <= 0) return;
-		const wasCapped = elapsedSeconds > Game.maxOfflineSeconds;
-		const cappedSeconds = Math.min(elapsedSeconds, Game.maxOfflineSeconds);
+		const maxOfflineSeconds = Game.getMaxOfflineSeconds()
+		const wasCapped = elapsedSeconds > maxOfflineSeconds;
+		const cappedSeconds = Math.min(elapsedSeconds, maxOfflineSeconds);
 		const gained = Game.fishPerSecond * cappedSeconds * Game.offlineEfficiency;
 
 		if (Math.floor(gained) > 0) {
