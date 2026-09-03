@@ -6,6 +6,9 @@ Started 28/08/2026
 This started life as a Cookie Clicker Mod and turns out I just wanted to make a whole new game.
 Many thanks to Orteil for the inspiration, check it out at: https://orteil.dashnet.org/cookieclicker/
 */
+
+const DEV = 0;
+
 function getEle(what) {
 	return document.getElementById(what);
 }
@@ -3079,7 +3082,7 @@ Game.addBuilding({
 	id: "grandpa",
 	name: "Grandpas",
 	desc: "Grandpas with nothing better to do than help you fish.",
-	flavor: "The Grandmas were busy.",
+	flavor: "They appear grumpy, but they're harmless really.",
 	baseRate: 1,
 	baseCost: 250,
 	costScale: 1.15,
@@ -3143,7 +3146,7 @@ Game.addUpgrade({
 	id: "bobberUp2",
 	name: "Better Bobber",
 	desc: "Catch 3 fish per click instead of 2.",
-	flavor: "",
+	flavor: "Apparently all the pros use this one!",
 	cost: 100,
 	requires: ["bobberUp1"],
 	icon: {
@@ -3161,8 +3164,26 @@ Game.addUpgrade({
 	id: "nightPower1",
 	name: "Night Owl",
 	desc: "+2% Fish Per Click while it's Nighttime.",
+	flavor: "If the boatsa knocking...",
 	cost: 500, // CHANGE
 	requires: ["bobberUp2","seahorse"],
+	icon: {
+		sheet: "flo_icons_ui",
+		col: 4,
+		row: 1
+	},
+	purchased: false,
+	effects: {
+		nightPower: 0.02
+	}
+});
+Game.addUpgrade({
+	id: "nightPower2",
+	name: "Night.. Gull?",
+	desc: "+2% Fish Per Click while it's Nighttime.",
+	flavor: "Early bird gets the fish.",
+	cost: 500, // CHANGE
+	requires: ["fisherBag","nightPower1"],
 	icon: {
 		sheet: "flo_icons_ui",
 		col: 4,
@@ -3214,6 +3235,7 @@ Game.addUpgrade({
 	id: "fisherBag",
 	name: "Fishing Bag",
 	desc: "A fishing bag to store all your Trophies and Stats!",
+	flavor: "Wait, this is just an old rucksack? For 50 FISH!?",
 	cost: 50,
 	requires: ["bobberUp1"],
 	icon: {
@@ -3232,6 +3254,7 @@ Game.addUpgrade({
 Game.addUpgrade({
 	id: "cultistFavor",
 	name: "Cultist's Blessing",
+	flavor: "Psst Hey! My friend wants to meet you.",
 	desc: "???",
 	cost: 20,
 	requires: ["bobberUp1"],
