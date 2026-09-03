@@ -2780,6 +2780,8 @@ const Game = {
 
         Game.dayNight.progress = 0;
 
+
+		Game.seagullManager.active = [];
         Game.syncUpgradeStatModifiers();
         Game.recalcGains();
         Game.updateFishDisplay();
