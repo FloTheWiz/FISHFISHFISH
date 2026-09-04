@@ -123,8 +123,156 @@ function drawFromSheet(ctx, sheet, col, row, tileSize, dx, dy, scale = 1, flipX 
 
 	ctx.restore();
 }
+//// SOUNDS 
+/*
+SOUND.JS
+
+Standalone audio manager — knows nothing about Game.
+Load sounds into the manifest below, then call Sound.play("name") from wherever.
+
+Uses Web Audio so overlapping plays are free (every play() spins up its own
+AudioBufferSourceNode) and pitch variance is just a playbackRate tweak.
+*/
+
+const Sound = {
+	ctx: null,
+	unlocked: false,
+
+	buffers: {},     // name -> decoded AudioBuffer
+	manifest: {
+		// name: { url, category }
+		// fill these in as you record stuff
+		// "catch": { url: "sounds/catch.wav", category: "sfx" },
+	},
+
+	// CATEGORY BUSES — separate volume knobs, each routes to master
+	categories: {
+		sfx: { gainNode: null, volume: 1 },
+		music: { gainNode: null, volume: 0.6 },
+		ambient: { gainNode: null, volume: 0.5 }
+	},
+	masterGainNode: null,
+	masterVolume: 0.8,
+	muted: false,
 
 
+	// BOOT / LOADING
+	init: function() {
+		if (this.ctx) return;
+		this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+		this.masterGainNode = this.ctx.createGain();
+		this.masterGainNode.gain.value = this.muted ? 0 : this.masterVolume;
+		this.masterGainNode.connect(this.ctx.destination);
+
+		for (const catName in this.categories) {
+			const cat = this.categories[catName];
+			cat.gainNode = this.ctx.createGain();
+			cat.gainNode.gain.value = cat.volume;
+			cat.gainNode.connect(this.masterGainNode);
+		}
+	},
+	unlock: function() {
+		if (this.unlocked) return;
+		this.init();
+		if (this.ctx.state === "suspended") this.ctx.resume();
+		this.unlocked = true;
+	},
+
+	loadOne: async function(name, def) {
+		const res = await fetch(def.url);
+		const arrayBuffer = await res.arrayBuffer();
+		const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+		this.buffers[name] = { buffer: audioBuffer, category: def.category || "sfx" };
+	},
+
+	loadAll: async function() {
+		this.init(); // decodeAudioData needs a ctx even before unlock
+		const jobs = [];
+		for (const name in this.manifest) {
+			jobs.push(this.loadOne(name, this.manifest[name]).catch(err => {
+				console.warn(`Sound: failed to load "${name}"`, err);
+			}));
+		}
+		await Promise.all(jobs);
+	},
+
+	// PLAYBACK
+	// opts: { volume, pitch, pitchVariance, volumeVariance, rate, loop }
+	// - pitch: base playbackRate (1 = normal)
+	// - pitchVariance: +/- random range added to pitch each play (e.g. 0.1)
+	// - volumeVariance: +/- random range added to volume each play (e.g. 0.1)
+	play: function(name, opts = {}) {
+		if (this.muted || !this.unlocked) return null;
+
+		const entry = this.buffers[name];
+		if (!entry) {
+			console.warn(`Sound: "${name}" not loaded`);
+			return null;
+		}
+
+		const cat = this.categories[entry.category];
+		if (!cat) return null;
+
+		const source = this.ctx.createBufferSource();
+		source.buffer = entry.buffer;
+
+		const pitch = opts.pitch ?? 1;
+		const pitchVar = opts.pitchVariance ?? 0;
+		source.playbackRate.value = pitch + (Math.random() * 2 - 1) * pitchVar;
+
+		if (opts.loop) source.loop = true;
+
+		const gainNode = this.ctx.createGain();
+		const vol = opts.volume ?? 1;
+		const volVar = opts.volumeVariance ?? 0;
+		gainNode.gain.value = Math.max(0, vol + (Math.random() * 2 - 1) * volVar);
+
+		source.connect(gainNode).connect(cat.gainNode);
+		source.start(0);
+
+		return source; // caller can .stop() it later if needed (e.g. looped ambient)
+	},
+
+	// VOLUME CONTROL
+	setMasterVolume: function(v) {
+		this.masterVolume = v;
+		if (this.masterGainNode && !this.muted) this.masterGainNode.gain.value = v;
+	},
+	setCategoryVolume: function(catName, v) {
+		const cat = this.categories[catName];
+		if (!cat) return;
+		cat.volume = v;
+		if (cat.gainNode) cat.gainNode.gain.value = v;
+	},
+	toggleMute: function() {
+		this.muted = !this.muted;
+		if (this.masterGainNode) this.masterGainNode.gain.value = this.muted ? 0 : this.masterVolume;
+		return this.muted;
+	}
+};
+Sound.manifest = {
+	oceanBG: {url: "snd/RainBG.wav",category:"ambient"},
+	blop: {url: "snd/Blop.wav", category: "sfx"},
+	bwoing: {url: "snd/Bwoing.wav", category: "sfx"},
+	swipe: {url: "snd/Swipe.wav", category: "sfx"},
+	tsh: {url: "snd/Tsh.wav", category: "sfx"},
+	clickfish: {url: "snd/betterclick (1).wav", category: "sfx"},
+	click: {url: "snd/betterclick.wav", category: "sfx"},
+}
+/*
+Sound.manifest = {
+	catch: { url: "sounds/catch.wav", category: "sfx" },
+	buy: { url: "sounds/buy.wav", category: "sfx" },
+	splat: { url: "sounds/splat.wav", category: "sfx" },
+	ascend: { url: "sounds/ascend.wav", category: "sfx" },
+	oceanLoop: { url: "sounds/ocean_loop.wav", category: "ambient" }
+};
+*/
+Sound.loadAll(); // kick off fetching, doesn't need unlock yet
+
+
+// wherever a catch happens:
 
 
 ////// GAME //////
@@ -586,44 +734,51 @@ const Game = {
 	},
 	handleHover: function(e) {
 		const rect = Game.canvas.getBoundingClientRect();
-
+		
 		const x = e.clientX - rect.left;
 		const y = e.clientY - rect.top;
 
 		Game.boat.isHovered = Game.isPointInBoat(x, y);
-
+		if (Game.boat.isHovered) document.body.style.cursor = 'pointer';
+		else document.body.style.cursor = 'default';
+		
 		Game.boat.scale = Game.boat.isHovered ?
 			1.03 :
 			1;
 	},
 	clickSide: 0,
 	handleClick: function(e) {
-    if (Game.paused) return;
+		
+		Sound.unlock();
+		Sound.play('oceanBG',{loop:true});
+		if (Game.paused) return;
 
-    const rect = Game.canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-	if (x < Game.canvas.width / 2) {
-		Game.clickSide = 1
-	}
-	else {
-		Game.clickSide = 0;
-	}
-    const seagull = Game.seagullManager.getClickedSeagull(x, y);
-    if (seagull) {
-        Game.seagullManager.clickSeagull(seagull);
-        return;
-    }
+		const rect = Game.canvas.getBoundingClientRect();
+		const x = e.clientX - rect.left;
+		const y = e.clientY - rect.top;
+		if (x < Game.canvas.width / 2) {
+			Game.clickSide = 1
+		}
+		else {
+			Game.clickSide = 0;
+		}
+		const seagull = Game.seagullManager.getClickedSeagull(x, y);
+		if (seagull) {
+			Game.seagullManager.clickSeagull(seagull);
+			return;
+		}
 
-    if (!Game.boat.isHovered) return;
-    Game.boat.scale = 0.88;
-    Game.catchFish(e);
-    Game.updateShopAffordability();
+		if (!Game.boat.isHovered) return;
+		Game.boat.scale = 0.88;
+		Game.catchFish(e);
+		Game.updateShopAffordability();
 
-},
+	},
 
 	// Catching
 	catchFish: function(e) {
+		
+		Sound.play('clickfish',{pitchVariance:0.35,volumeVariance:0.1})
 		Game.gainFish(Game.fishPerClick);
 
 		// 1. Spawn +1 Text
@@ -1784,6 +1939,7 @@ const Game = {
 			const fpsReward = Game.fishPerSecond * 60 * 5;
 			var reward = Math.min(bankReward, fpsReward);
 			if (reward == 0) reward = 25;
+			Sound.play("swipe",{pitchVariance:0.1});
 			Game.gainFish(reward);
 
 			g.state = "splat";
@@ -2054,6 +2210,7 @@ const Game = {
 	togglePanel: function(id) {
 		const panel = this.panels[id];
 		if (!panel || !panel.el) return;
+		Sound.play("click");
 		if (!panel.open) {
 			for (const otherId in this.panels) {
 				if (otherId === id) continue;
@@ -3078,6 +3235,7 @@ Game.addBuilding({
 		/* hook into a passive income tick later */
 	}
 });
+
 Game.addBuilding({
 	id: "grandpa",
 	name: "Grandpas",
@@ -3097,6 +3255,7 @@ Game.addBuilding({
 		/* hook into a passive income tick later */
 	}
 });
+
 Game.addBuilding({
 	id: "pier",
 	name: "Pier",
@@ -3142,6 +3301,7 @@ Game.addUpgrade({
 		fishPerClick: 1
 	}
 });
+
 Game.addUpgrade({
 	id: "bobberUp2",
 	name: "Better Bobber",
@@ -3177,6 +3337,7 @@ Game.addUpgrade({
 		nightPower: 0.02
 	}
 });
+
 Game.addUpgrade({
 	id: "nightPower2",
 	name: "Night.. Gull?",
@@ -3194,6 +3355,7 @@ Game.addUpgrade({
 		nightPower: 0.02
 	}
 });
+
 Game.addUpgrade({
 	id: "dayPower1",
 	name: "Daylight Dancer",
@@ -3231,6 +3393,7 @@ Game.addUpgrade({
 		Game.allFishById["flo_seahorse"].unlocked = true;
 	}
 });
+
 Game.addUpgrade({
 	id: "fisherBag",
 	name: "Fishing Bag",
@@ -3251,6 +3414,7 @@ Game.addUpgrade({
 		cultToggle.style.display = 'block';
 	}
 });
+
 Game.addUpgrade({
 	id: "cultistFavor",
 	name: "Cultist's Blessing",

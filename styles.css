@@ -130,6 +130,7 @@ body {
     width: 64px;
     height: 64px;
     background-position: 0px 0px;
+    cursor: pointer;
     image-rendering: pixelated;
     filter: drop-shadow(2px 2px 2px #11111188);
 }
