@@ -1484,6 +1484,14 @@ const Game = {
 		waveLength: 160
 	},
 
+
+
+	// PLAYER
+
+	playerChar: {
+		char: 0,
+		costume: 0,
+	},
 	updateBoat: function(dt) {
 		this.boat.recoil += (1.0 - this.boat.scale) * 15 * dt;
 		this.boat.scale += this.boat.recoil;
@@ -1524,10 +1532,7 @@ const Game = {
 
 		// Draw Player
 		const playerSheet = Game.imgs["flo_chars"];
-		const testData = {
-			"char": 0,
-			"costume": 0
-		};
+		
 
 		if (playerSheet.complete) {
 			if (Game.ascension.state === "sinking") {
@@ -1538,8 +1543,8 @@ const Game = {
 				drawFromSheet(
 					Game.ctx,
 					playerSheet,
-					testData.costume,
-					testData.char,
+					Game.playerChar.costume,
+					Game.playerChar.char,
 					32,
 					8,
 					-52+Game.ascension.timer, // Move player upward during ascension
@@ -1552,8 +1557,8 @@ const Game = {
 				drawFromSheet(
 					Game.ctx,
 					playerSheet,
-					testData.costume,
-					testData.char,
+					Game.playerChar.costume,
+					Game.playerChar.char,
 					32,
 					10,
 					-52,
@@ -2180,6 +2185,18 @@ const Game = {
 			}
 		},
 		settings: {
+			side: "left",
+			el: null,
+			toggleImg: null,
+			open: false,
+			toggleFunc: function(panel){
+				panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
+			},
+			build: function(div) {
+
+			}
+		},
+		stats: {
 			side: "right",
 			el: null,
 			toggleImg: null,
@@ -2589,32 +2606,49 @@ const Game = {
 		Game.fishDirty = true;
 	},
 	recalcStats: function() {
-		const stats = {
-			...Game.baseStats
-		};
-		const buildingRateBonus = {}; // building id -> summed bonus amount
+		const addStats = { ...Game.baseStats };
+		const multStats = {};
+		const buildingAdd = {};
+		const buildingMult = {};
 
 		for (const mod of Game.statModifiers) {
+			const type = mod.type || "add";
+
 			if (mod.stat.startsWith("building:")) {
 				const buildingId = mod.stat.split(":")[1];
-				buildingRateBonus[buildingId] = (buildingRateBonus[buildingId] ?? 0) + mod.amount;
+				if (type === "mult") {
+					buildingMult[buildingId] = (buildingMult[buildingId] ?? 1) * mod.amount;
+				} else {
+					buildingAdd[buildingId] = (buildingAdd[buildingId] ?? 0) + mod.amount;
+				}
 			} else {
-				stats[mod.stat] = (stats[mod.stat] ?? 0) + mod.amount;
+				if (type === "mult") {
+					multStats[mod.stat] = (multStats[mod.stat] ?? 1) * mod.amount;
+				} else {
+					addStats[mod.stat] = (addStats[mod.stat] ?? 0) + mod.amount;
+				}
 			}
 		}
 
-		Game.baseFishPerClick = stats.fishPerClick;
-		Game.baseFishPerSecMult = stats.fishPerSecMult;
-		Game.dayPower = stats.dayPower;
-		Game.nightPower = stats.nightPower;
-		Game.eclipsePower = stats.eclipsePower;
-		Game.cookieStormPower = stats.cookieStormPower;
-
-		for (const building of Game.buildings) {
-			building.rateMult = 1 + (buildingRateBonus[building.id] ?? 0);
+		// Apply multipliers on top of the additive base for every stat that has one
+		for (const stat in multStats) {
+			addStats[stat] = (addStats[stat] ?? Game.baseStats[stat] ?? 0) * multStats[stat];
 		}
 
-		Game.applyEnvironmentalStats(); // folds day/night/eclipse/cookie-storm buffs on top -> final fishPerClick/fishPerSecMult
+		Game.baseFishPerClick = addStats.fishPerClick;
+		Game.baseFishPerSecMult = addStats.fishPerSecMult;
+		Game.dayPower = addStats.dayPower;
+		Game.nightPower = addStats.nightPower;
+		Game.eclipsePower = addStats.eclipsePower;
+		Game.cookieStormPower = addStats.cookieStormPower;
+
+		for (const building of Game.buildings) {
+			const add = buildingAdd[building.id] ?? 0;
+			const mult = buildingMult[building.id] ?? 1;
+			building.rateMult = (1 + add) * mult;
+		}
+
+		Game.applyEnvironmentalStats();
 	},
 
 	// Called every frame (day/night progress and special-weather blend both change continuously,
@@ -2674,14 +2708,23 @@ const Game = {
 
 		for (const upgrade of Game.upgrades) {
 			if (!upgrade.purchased || !upgrade.effects) continue;
-			if (upgrade.onBuy) upgrade.onBuy(); // onbuy fires AGAIN just in case lol
+			if (upgrade.onBuy) upgrade.onBuy();
+
 			for (const stat in upgrade.effects) {
-				Game.statModifiers.push({
-					source: upgrade.id,
-					stat,
-					amount: upgrade.effects[stat],
-					fromUpgrade: true
-				});
+				const raw = upgrade.effects[stat];
+
+				if (typeof raw === "number") {
+					// legacy shorthand: plain number = additive, unchanged behavior
+					Game.statModifiers.push({ source: upgrade.id, stat, type: "add", amount: raw, fromUpgrade: true });
+					continue;
+				}
+
+				if (raw.add !== undefined) {
+					Game.statModifiers.push({ source: upgrade.id, stat, type: "add", amount: raw.add, fromUpgrade: true });
+				}
+				if (raw.mult !== undefined) {
+					Game.statModifiers.push({ source: upgrade.id, stat, type: "mult", amount: raw.mult, fromUpgrade: true });
+				}
 			}
 		}
 
@@ -3237,10 +3280,10 @@ Game.addBuilding({
 });
 
 Game.addBuilding({
-	id: "grandpa",
-	name: "Grandpas",
-	desc: "Grandpas with nothing better to do than help you fish.",
-	flavor: "They appear grumpy, but they're harmless really.",
+	id: "crabpot",
+	name: "Crab Pot",
+	desc: "Catches slightly more fish. Also looks colorful",
+	flavor: "You see despite being called CRAB pots...",
 	baseRate: 1,
 	baseCost: 250,
 	costScale: 1.15,
@@ -3257,10 +3300,10 @@ Game.addBuilding({
 });
 
 Game.addBuilding({
-	id: "pier",
-	name: "Pier",
-	desc: "A pier for your Grandpas to sit on.",
-	flavor: "Pier? I 'ardly know 'er!",
+	id: "grandpa",
+	name: "Grandpa",
+	desc: "A Grandpa to Fish for you!",
+	flavor: "Ramblin' 'n' Grumblin' free of charge!",
 	baseRate: 15,
 	baseCost: 2500,
 	costScale: 1.15,
@@ -3272,9 +3315,12 @@ Game.addBuilding({
 	},
 	owned: 0,
 	onBuy: function(b) {
-		/* hook into a passive income tick later */
+		
 	}
 });
+
+
+// Building Upgrades
 
 
 
@@ -3282,6 +3328,36 @@ Game.addBuilding({
 
 /////////////////////////////////
 
+Game.addUpgrade({
+	id: "woodenNet",
+	name: "Wood Reinforced Nets!",
+	desc: "Nets catch 1.5x more fish!",
+	flavor: "Wood? Nets? Going OLDSCHOOL",
+	cost: 100,
+	requires: [],
+	icon: {
+		sheet: "flo_icons_ui",
+		col: 0,
+		row: 0
+	},
+	purchased: false,
+	effects: {
+        "building:net": { mult: 1.5 }
+    }
+});
+
+Game.addUpgrade({
+    id: "netWeave",
+    name: "Tighter Weave",
+    desc: "+25% Fishing Net output.",
+    cost: 800,
+    requires: [],
+    icon: { sheet: "flo_icons_ui", col: 3, row: 3 },
+    purchased: false,
+    effects: {
+        "building:net": { mult: 1.25 }
+    }
+});
 ///////////////////////////////////////
 
 Game.addUpgrade({
@@ -3301,6 +3377,20 @@ Game.addUpgrade({
 		fishPerClick: 1
 	}
 });
+
+Game.addUpgrade({
+    id: "goldenHook",
+    name: "Golden Hook",
+    desc: "Doubles your Fish Per Click.",
+    cost: 5000,
+    requires: ["bobberUp2"],
+    icon: { sheet: "flo_icons_ui", col: 3, row: 2 },
+    purchased: false,
+    effects: {
+        fishPerClick: { mult: 2 }
+    }
+});
+
 
 Game.addUpgrade({
 	id: "bobberUp2",

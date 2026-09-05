@@ -23,6 +23,10 @@ body {
 	overflow: hidden;
 }
 
+html {
+    
+}
+
 body {
 	position: relative;
 	background: #191f22;
@@ -55,6 +59,20 @@ body {
     pointer-events: none; /* never blocks clicks when it's empty */
 }
 
+#gameOverlay{
+    position:absolute;
+    height:100vh;
+    width:100vw;
+    top:0;
+    bottom:0;
+    right:0;
+    left:0;
+    z-index:2;
+    pointer-events: none;
+    /* Light vignere or smth*/
+    background-size: 100% 100%, auto;
+    background-attachment: fixed, scroll;
+}
 .t {
     opacity: 1;
     pointer-events: auto;
@@ -113,6 +131,11 @@ body {
 #bagToggle { /* Prolly do this for cultist too ngl*/
     display: none; 
 }
+#statsToggle {
+    background-image: url(/img/chars2x4.png);
+}
+
+
 .panelToggle.right{
     right:16px;
 }

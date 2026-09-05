@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <meta statsset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>FISH FISH FISH</title>
@@ -13,6 +13,7 @@
 </head>
 
 <body>
+    <div id="gameOverlay"></div>
     <!-- Modals -->
     <div id="popup" class="popup">
         <div id="tooltip"></div>
@@ -47,6 +48,13 @@
     </div>
 
 
+    <!-- Bottom-left: Settings -->
+    <div class="t panelToggle" id="settingsToggle" style="left:16px; bottom:16px; top:auto;">
+        <button onclick="Game.togglePanel('settings');">
+            <div class="toggleImg" id="settingsButton"></div>
+        </button>
+    </div>
+    <div class="t panelContainer panelLeft" id="settingsContainer"></div>
     
     <!-- Right side: Upgrades -->
     <div class="t panelToggle right" id="upgradeToggle" style="top:16px;">
@@ -66,13 +74,13 @@
     </div>
     <div class="t panelContainer panelRight" id="bagContainer"></div>
 
-    <!-- Bottom-right: Settings -->
-    <div class="t panelToggle" id="settingsToggle" style="right:16px; bottom:16px; top:auto;">
-        <button onclick="Game.togglePanel('settings');">
-            <div class="toggleImg" id="settingsButton"></div>
+    <!-- Bottom-right: Stats -->
+    <div class="t panelToggle" id="statsToggle" style="bottom:16px; right:16px; top:auto;">
+        <button onclick="Game.togglePanel('stats');">
+            <div class="toggleImg" id="statsToggle"></div>
         </button>
     </div>
-    <div class="t panelContainer panelRight" id="settingsContainer"></div>
+    <div class="t panelContainer panelRight" id="statsContainer"></div>
 
 
 
