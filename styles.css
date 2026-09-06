@@ -132,7 +132,7 @@ body {
     display: none; 
 }
 #statsButton {
-    background-image: url(/img/chars2x4.png);
+    background-image: url(img/chars2x4.png);
     background-repeat: no-repeat;
     width: 64px;
     height: 64px;

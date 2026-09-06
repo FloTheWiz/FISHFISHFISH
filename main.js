@@ -386,8 +386,8 @@ const Game = {
 	// Sound
 	// SPRITE LOADING
 	spritesOnBoot: { // named to avoid namespace collision, feel free to mod some in
-		"flo_fish": "/img/iconsx32.png", // 32x, smaller
-		"flo_icons": "/img/icons.png", // 64x, bigger, for UI 
+		"flo_fish": "img/iconsx32.png", // 32x, smaller
+		"flo_icons": "img/icons.png", // 64x, bigger, for UI 
 		"flo_boatfront": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-front.png",
 		"flo_boatback": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-back.png",
 		"flo_chars": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/chars2.png",
@@ -2974,7 +2974,6 @@ const Game = {
 		for (const panelId in checks) {
 			const panel = Game.panels[panelId];
 			if (!panel || !panel.toggleImg) continue;
-
 			const { glow, icon } = checks[panelId];
 			panel.toggleImg.classList.toggle("shopGlow", glow);
 
