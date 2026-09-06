@@ -131,11 +131,28 @@ body {
 #bagToggle { /* Prolly do this for cultist too ngl*/
     display: none; 
 }
-#statsToggle {
+#statsButton {
     background-image: url(/img/chars2x4.png);
+    background-repeat: no-repeat;
+    width: 64px;
+    height: 64px;
 }
 
-
+.statsSection { margin-bottom: 16px; }
+.charGrid { display: flex; flex-wrap: wrap; gap: 6px; }
+.charOption {
+    padding: 4px;
+    border: 2px solid transparent;
+    background: none;
+    cursor: pointer;
+}
+.charOption.selected { border-color: #ffcc55; border-radius: 6px; }
+.statsIconList { display: flex; flex-wrap: wrap; gap: 6px; }
+.statsIconItem {filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5))}
+.statsIconItem.locked { opacity: 0.1;}
+.resetWarning { color: #ff8080; font-weight: bold; }
+.dangerBtn { border-color: #ff5050 !important; }
+.comingSoon { opacity: 0.6; font-style: italic; }
 .panelToggle.right{
     right:16px;
 }

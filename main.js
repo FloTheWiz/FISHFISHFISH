@@ -7,6 +7,73 @@ This started life as a Cookie Clicker Mod and turns out I just wanted to make a 
 Many thanks to Orteil for the inspiration, check it out at: https://orteil.dashnet.org/cookieclicker/
 */
 
+
+/* This file is laid out with the important bits at the top and the definitions at the bottom.
+Things like Boot, Update, Draw, Tick can be found around the top;
+
+comments n credits <-- You are here. 
+
+HELPER FUNCTIONS 
+
+Sound System
+Language (soon)
+
+{
+	GAME OBJECT BEGINS
+	definitions of various variables used by a lot of systems, such as Game.canvas
+
+	UI Necesitties -> Hook, Resize, Etc
+	Boot manager
+
+	Main Loop
+
+	Fish Catching and Boat clicking
+
+	Ascension
+
+	(this whole section is basically just drawing the world)
+	Weather System (env)
+	Special Weathers
+	Sky 
+	Colors (Does ALL the colour lifting)
+	Cloud System
+	Rain System
+
+	Particle System (Not very good)
+	Character System
+
+	Drawing --> 
+	- Boat (w/ Player / Guests)
+	- Water (+BG)
+	
+	Fish System
+	Seagull System
+
+	(UI Section Start)
+	NPCS
+	Panels (there's a lot)
+	Upgrades
+	Fish and Tiered Fish Upgrades
+	Tooltips (could be improved)
+	Buildings 
+	Showing Buffs and Displaying Fish
+	Tooltips
+
+	Saving and Loading (+toast)
+	Offline Progression (+popup)
+	Achievements (+popup)
+
+	(DEFINITIONS BEGIN)
+	fish swimming + definitions
+	achievements 
+	buildings 
+	upgrades 
+	characters 
+	special ocean events 
+	special weather (soon probably)
+
+	call Game.Boot(), basically
+*/
 const DEV = 0;
 
 function getEle(what) {
@@ -127,7 +194,7 @@ function drawFromSheet(ctx, sheet, col, row, tileSize, dx, dy, scale = 1, flipX 
 /*
 SOUND.JS
 
-Standalone audio manager — knows nothing about Game.
+Standalone audio manager
 Load sounds into the manifest below, then call Sound.play("name") from wherever.
 
 Uses Web Audio so overlapping plays are free (every play() spins up its own
@@ -145,7 +212,7 @@ const Sound = {
 		// "catch": { url: "sounds/catch.wav", category: "sfx" },
 	},
 
-	// CATEGORY BUSES — separate volume knobs, each routes to master
+	// CATEGORY BUSES
 	categories: {
 		sfx: { gainNode: null, volume: 1 },
 		music: { gainNode: null, volume: 0.6 },
@@ -155,7 +222,7 @@ const Sound = {
 	masterVolume: 0.8,
 	muted: false,
 
-
+	
 	// BOOT / LOADING
 	init: function() {
 		if (this.ctx) return;
@@ -173,10 +240,11 @@ const Sound = {
 		}
 	},
 	unlock: function() {
-		if (this.unlocked) return;
+		if (this.unlocked) return false;
 		this.init();
 		if (this.ctx.state === "suspended") this.ctx.resume();
 		this.unlocked = true;
+		return this.unlocked;
 	},
 
 	loadOne: async function(name, def) {
@@ -314,6 +382,39 @@ const Game = {
 	saveToastEl: null,
 	saveToastTimeout: null,
 
+
+	// Sound
+	// SPRITE LOADING
+	spritesOnBoot: { // named to avoid namespace collision, feel free to mod some in
+		"flo_fish": "/img/iconsx32.png", // 32x, smaller
+		"flo_icons": "/img/icons.png", // 64x, bigger, for UI 
+		"flo_boatfront": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-front.png",
+		"flo_boatback": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-back.png",
+		"flo_chars": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/chars2.png",
+		"flo_portraits": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/portraits3x2.png",
+		"flo_icons_ui": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/fish_spritesheetx2.png", // soon to be phased out 64x
+		"flo_sky_bodies": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/sunsx2.png",
+		"flo_clouds": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/normalclouds.png",
+		"flo_seagull": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/seagull.png"
+	},
+
+	imgs: {},
+	loadSprite: function(name, url) {
+		const newimg = new Image();
+
+		newimg.src = url;
+
+		Game.imgs[name] = newimg;
+
+		return newimg;
+	},
+
+	bootSprites: function() {
+		for (const id in Game.spritesOnBoot) {
+			Game.loadSprite(id, Game.spritesOnBoot[id]);
+		}
+	},
+
 	// RESIZE, HOOK,
 	resize: function() {
 		if (!Game.canvas) return;
@@ -341,6 +442,15 @@ const Game = {
 
 		Game.canvas.addEventListener("pointerdown", Game.handleClick);
 		Game.canvas.addEventListener("pointermove", Game.handleHover);
+		window.addEventListener("keydown", (e) => {
+			var loaded = Sound.unlock(); // this... might screw me?
+			if (loaded) Sound.play('oceanBG',{loop:true});
+			if (e.key.toLowerCase() === "f" && Game.autoClicker.enabled) Game.autoClicker.held = true; // How the H*CK do you detect gamepad input lol
+		});
+		window.addEventListener("keyup", (e) => {
+			Sound.unlock();
+			if (e.key.toLowerCase() === "f") Game.autoClicker.held = false;
+		});
 	},
 	hookPopups: function() {
 		const closeBtn = getEle("offlinePopupClose");
@@ -364,6 +474,10 @@ const Game = {
 		Game.setupParticlePool();
         Game.initialFish();
         Game.cloudManager.initialClouds();
+
+		Game.ensurePlayerId()
+
+
 		requestAnimationFrame(Game.loop);
 		setInterval(Game.tick, 1000);
 		setInterval(Game.save, 30000); // autosave every 30s
@@ -423,6 +537,7 @@ const Game = {
 
 	// DRAWING
 	draw: function(dt) {
+		// the most particular order ever. Should maybe just be an ordered list. 
 		if (Game.ascension.state !== "idle") {
 			Game.ascension.draw(dt);
 		}
@@ -450,6 +565,7 @@ const Game = {
 		return;
 	},
 	update: function(dt) {
+		// this feels like a criminal amount of per-frame updates
 		Game.time += dt;
 		this.updateParticles(dt);
 		this.updateFish(dt);
@@ -468,6 +584,16 @@ const Game = {
 		this.cloudManager.update(dt);
 		this.seagullManager.update(dt);
 		this.rainManager.update(dt); 
+
+		if (Game.autoClicker.enabled && Game.autoClicker.held) {
+			Game.autoClicker.timer += dt;
+			while (Game.autoClicker.timer >= Game.autoClicker.interval) {
+				Game.autoClicker.timer -= Game.autoClicker.interval;
+				Game.catchFish();
+			}
+		} else {
+			Game.autoClicker.timer = 0; // don't let it bank up progress while not held
+		}
 		},
 	tick: function() {
 		if (Game.paused || Game.isAscending) return;
@@ -518,9 +644,6 @@ const Game = {
 
 			xCoord = xCoord || Math.random() * Game.canvas.width;
 			yCoord = yCoord || Game.waterLine;
-
-			// 3. Launch the fish particle from the boat position
-			const boatSpawnX = this.centerX + (Math.random() * 60 - 30);
 			this.spawnParticle(
 				xCoord,
 				yCoord,
@@ -534,7 +657,86 @@ const Game = {
 		}
 	},
 
+	// CLICK EVENTS
 
+	boatHitbox: {
+		width: 300,
+		height: 240
+	},
+	isBoatClicked: false,
+	isPointInBoat: function(x, y) {
+		const boatX = Game.centerX;
+		const boatY = Game.waterLine - 50;
+
+		const halfWidth = Game.boatHitbox.width / 2;
+		const halfHeight = Game.boatHitbox.height / 2;
+
+		return (
+			x >= boatX - halfWidth &&
+			x <= boatX + halfWidth &&
+			y >= boatY - halfHeight &&
+			y <= boatY + halfHeight
+		);
+	},
+	handleHover: function(e) {
+		const rect = Game.canvas.getBoundingClientRect();
+		
+		const x = e.clientX - rect.left;
+		const y = e.clientY - rect.top;
+
+		Game.boat.isHovered = Game.isPointInBoat(x, y);
+		if (Game.boat.isHovered) document.body.style.cursor = 'pointer';
+		else document.body.style.cursor = 'default';
+		
+		Game.boat.scale = Game.boat.isHovered ?
+			1.03 :
+			1;
+	},
+	clickSide: 0,
+	handleClick: function(e) {
+		var loaded = Sound.unlock(); // this... might screw me?
+		if (loaded) Sound.play('oceanBG',{loop:true});
+		if (Game.paused) return;
+
+		const rect = Game.canvas.getBoundingClientRect();
+		const x = e.clientX - rect.left;
+		const y = e.clientY - rect.top;
+		if (x < Game.canvas.width / 2) {
+			Game.clickSide = 1
+		}
+		else {
+			Game.clickSide = 0;
+		}
+		const seagull = Game.seagullManager.getClickedSeagull(x, y);
+		if (seagull) {
+			Game.seagullManager.clickSeagull(seagull);
+			return;
+		}
+
+		if (!Game.boat.isHovered) return;
+		Game.boat.scale = 0.88;
+		Game.catchFish(e);
+		Game.updateShopAffordability();
+
+	},
+
+	// Catching
+	catchFish: function(e) {
+		
+		Sound.play('clickfish',{pitchVariance:0.35,volumeVariance:0.1})
+		Game.gainFish(Game.fishPerClick);
+
+		// 1. Spawn +1 Text
+		const textOffset = [(Math.random() * 10) - 10, Math.random() * 10 - 10];
+		this.spawnParticle(
+			this.centerX + textOffset[0],
+			this.waterLine - 30 + textOffset[1],
+			`+${this.fishPerClick}`,
+            col="#"
+		);
+		const boatSpawnX = this.centerX + (Math.random() * 60 - 30);
+		Game.spawnAFunnyFish(boatSpawnX);
+	},
 
 	// ASCENSION
 
@@ -711,87 +913,7 @@ const Game = {
 		var cultToggle = getEle('cultistToggle');
 		cultToggle.style.display = 'none';
 	},
-	// CLICK EVENTS
-
-	boatHitbox: {
-		width: 300,
-		height: 240
-	},
-	isBoatClicked: false,
-	isPointInBoat: function(x, y) {
-		const boatX = Game.centerX;
-		const boatY = Game.waterLine - 50;
-
-		const halfWidth = Game.boatHitbox.width / 2;
-		const halfHeight = Game.boatHitbox.height / 2;
-
-		return (
-			x >= boatX - halfWidth &&
-			x <= boatX + halfWidth &&
-			y >= boatY - halfHeight &&
-			y <= boatY + halfHeight
-		);
-	},
-	handleHover: function(e) {
-		const rect = Game.canvas.getBoundingClientRect();
-		
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
-
-		Game.boat.isHovered = Game.isPointInBoat(x, y);
-		if (Game.boat.isHovered) document.body.style.cursor = 'pointer';
-		else document.body.style.cursor = 'default';
-		
-		Game.boat.scale = Game.boat.isHovered ?
-			1.03 :
-			1;
-	},
-	clickSide: 0,
-	handleClick: function(e) {
-		
-		Sound.unlock();
-		Sound.play('oceanBG',{loop:true});
-		if (Game.paused) return;
-
-		const rect = Game.canvas.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
-		if (x < Game.canvas.width / 2) {
-			Game.clickSide = 1
-		}
-		else {
-			Game.clickSide = 0;
-		}
-		const seagull = Game.seagullManager.getClickedSeagull(x, y);
-		if (seagull) {
-			Game.seagullManager.clickSeagull(seagull);
-			return;
-		}
-
-		if (!Game.boat.isHovered) return;
-		Game.boat.scale = 0.88;
-		Game.catchFish(e);
-		Game.updateShopAffordability();
-
-	},
-
-	// Catching
-	catchFish: function(e) {
-		
-		Sound.play('clickfish',{pitchVariance:0.35,volumeVariance:0.1})
-		Game.gainFish(Game.fishPerClick);
-
-		// 1. Spawn +1 Text
-		const textOffset = [(Math.random() * 10) - 10, Math.random() * 10 - 10];
-		this.spawnParticle(
-			this.centerX + textOffset[0],
-			this.waterLine - 30 + textOffset[1],
-			`+${this.fishPerClick}`,
-            col="#"
-		);
-		const boatSpawnX = this.centerX + (Math.random() * 60 - 30);
-		Game.spawnAFunnyFish(boatSpawnX);
-	},
+	
 
 	// WEATHER
 	// Weather types
@@ -1484,13 +1606,105 @@ const Game = {
 		waveLength: 160
 	},
 
+	characterConfig: { // ~~this is basically a misplaced const~~
+		charCount: 12,    // rows = character identities
+		costumeCount: 4  // cols = costume variants per character
+	},
+
+	autoClicker: {
+		enabled: false,
+		held: false,
+		interval: 0.25, 
+		timer: 0,
+	},
 
 
 	// PLAYER
-
 	playerChar: {
 		char: 0,
 		costume: 0,
+	},
+
+	// PLAYER CHARACTERS & COSTUMES
+	characters: [],
+	charactersById: {},
+	// Your ID sits here.
+	playerId: null,
+
+	ensurePlayerId: function() {
+		if (!Game.playerId) {
+			Game.playerId = `p_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+		}
+		return Game.playerId;
+	},
+	
+	addCharacter: function(config) {
+		const { id, name, row, startUnlocked = false, unlockAchievementPct = null, unlockAchievements = [] } = config;
+		const character = { id, name, row, unlocked: startUnlocked, unlockAchievementPct, unlockAchievements, costumes: [] };
+		Game.characters.push(character);
+		Game.charactersById[id] = character;
+		return character;
+	},
+
+	// costumes are keyed by the character they belong to; col is the sprite column
+	addCostume: function(charId, config) {
+		const { id, name, col, startUnlocked = false, unlockAchievements = [] } = config;
+		const character = Game.charactersById[charId];
+		const costume = { id, name, col, unlocked: startUnlocked, unlockAchievements };
+		character.costumes.push(costume);
+		return costume;
+	},
+
+	// Persisted `unlocked` flags are the source of truth (survives save/load); this only PROMOTES
+	// something from locked to unlocked once its condition is met
+	checkCharacterUnlocks: function() {
+		let changed = false;
+		for (const character of Game.characters) {
+			if (!character.unlocked) {
+				const pctMet = character.unlockAchievementPct != null && Game.getAchievementPercent() >= character.unlockAchievementPct;
+				const listMet = character.unlockAchievements.length > 0 && character.unlockAchievements.every(id => Game.achievementsById[id]?.unlocked);
+				if (pctMet || listMet) { character.unlocked = true; changed = true; }
+			}
+			for (const costume of character.costumes) {
+				if (!costume.unlocked && costume.unlockAchievements.length > 0 &&
+					costume.unlockAchievements.every(id => Game.achievementsById[id]?.unlocked)) {
+					costume.unlocked = true; changed = true;
+				}
+			}
+		}
+		if (changed) Game.markPanelDirty("stats");
+	},
+	encodeFisherCode: function(charId, costumeId) {
+    return btoa(JSON.stringify({ v: 1, c: charId, k: costumeId, p: Game.ensurePlayerId() }));
+	},
+	decodeFisherCode: function(code) {
+		try {
+			const data = JSON.parse(atob(code));
+			if (data.v !== 1) return null;
+			if (data.p === Game.playerId) return { ownCode: true };
+			const character = Game.charactersById[data.c];
+			const costume = character?.costumes.find(co => co.id === data.k);
+			if (!character || !costume) return null;
+			return { charId: data.c, costumeId: data.k, name: character.name, costumeName: costume.name };
+		} catch (e) {
+			return null;
+		}
+	},
+	setGuestFromCode: function(code) {
+		const result = Game.decodeFisherCode(code);
+		if (!result || result.ownCode) return null, result.ownCode; // null covers both "malformed" and "that's you"
+		Game.guestChar = result;
+		return result, false;
+	},
+	guestChar: null, 
+
+	updateStatsButtonPreview: function() {
+		const btn = getEle('statsButton');
+		if (!btn) return;
+		const tileSize = 32; // matches the raw sprite tile size used everywhere else (drawBoat, renderIcon)
+		const { charCount, costumeCount } = Game.characterConfig;
+		//btn.style.backgroundSize = `${costumeCount * tileSize * 2}px ${charCount * tileSize * 2}px`; // 2x for the 64px button
+		btn.style.backgroundPosition = `-${Game.playerChar.costume * tileSize * 2}px -${Game.playerChar.char * tileSize * 2}px`;
 	},
 	updateBoat: function(dt) {
 		this.boat.recoil += (1.0 - this.boat.scale) * 15 * dt;
@@ -1567,7 +1781,13 @@ const Game = {
 				);
 			}
 		}
-
+		if (Game.guestChar) {
+			const guestChar = Game.charactersById[Game.guestChar.charId];
+			const guestCostume = guestChar?.costumes.find(c => c.id === Game.guestChar.costumeId);
+			if (guestChar && guestCostume && playerSheet.complete) {
+				drawFromSheet(Game.ctx, playerSheet, guestCostume.col, guestChar.row, 32, -30, -52, 1, !Game.clickSide);
+			}
+		}
 		if (boatFront.complete) {
 			Game.ctx.drawImage(
 				boatFront,
@@ -1705,36 +1925,7 @@ const Game = {
 
 		ctx.globalAlpha = 1;
 	},
-	// SPRITE LOADING
-	spritesOnBoot: { // named to avoid namespace collision, feel free to mod some in
-		"flo_fish": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/fish_spritesheet.png",
-		"flo_boatfront": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-front.png",
-		"flo_boatback": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-back.png",
-		"flo_chars": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/chars2.png",
-		"flo_portraits": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/portraits3x2.png",
-		"flo_icons_ui": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/fish_spritesheetx2.png",
-		"flo_sky_bodies": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/sunsx2.png",
-		"flo_clouds": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/normalclouds.png",
-		"flo_seagull": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/seagull.png"
-	},
-
-	imgs: {},
-	loadSprite: function(name, url) {
-		const newimg = new Image();
-
-		newimg.src = url;
-
-		Game.imgs[name] = newimg;
-
-		return newimg;
-	},
-
-	bootSprites: function() {
-		for (const id in Game.spritesOnBoot) {
-			Game.loadSprite(id, Game.spritesOnBoot[id]);
-		}
-	},
-
+	
 	// Fish Managers
 	allFish: [],
 	allFishById: {},
@@ -1754,38 +1945,41 @@ const Game = {
 		}
 	},
 	spawnFish: function(x,y) {
-		const poolFish = Game.allFish.filter(fish => fish.unlocked);
+    const poolFish = Game.allFish.filter(fish => fish.unlocked);
+    if (poolFish.length === 0) return;
 
-		if (poolFish.length === 0) return;
+    const definition = choose(poolFish);
+    const direction = Math.random() < 0.5 ? -1 : 1
+    const fish = { // what is a fish
+        definition: definition,
 
-		const definition = choose(poolFish);
-		const direction = Math.random() < 0.5 ? -1 : 1
-		const fish = {
-			definition: definition,
+        x: direction === 1 ? 0 - 30 - Math.random() * 20 : this.canvas.width + 30 + Math.random() * 20,
 
-			x: direction === 1 ? 0 - 30 - Math.random() * 20 : this.canvas.width + 30 + Math.random() * 20,
+        y: Math.min(Math.max(this.waterLine +
+            definition.yPref +
+            Math.random() * definition.yRange, this.waterLine + 52), this.canvas.height - 30),
 
-			y: Math.min(Math.max(this.waterLine +
-				definition.yPref +
-				Math.random() * definition.yRange, this.waterLine + 52), this.canvas.height - 30),
+        direction: direction,
 
-			direction: direction,
+        speed: definition.speedBase + Math.random() * definition.speedRange,
 
-			speed: definition.speedBase + Math.random() * definition.speedRange,
+        velocityX: 0,
+        velocityY: 0,
 
-			velocityX: 0,
-			velocityY: 0,
+        phase: Math.random() * Math.PI * 2,
+        bobAmount: definition.bobAmount,
+        bobFreq: definition.bobFreq,
+        wobbleStrength: definition.wobbleStrength,
 
-			phase: Math.random() * Math.PI * 2,
-
-			state: choose(definition.swimStates)
-		};
-        if (x) fish.x = x;
-        if (y) fish.y = y;
-		Game.spawnedFish.push(fish);
-		//console.log(`Spawned fish at: ${fish.x},${fish.y} facing ${fish.direction}`);
-
-	},
+        currentState: null,
+        stateTimer: 0,
+        stateDuration: 0
+    }; // a lot of variables.
+    if (x) fish.x = x;
+    if (y) fish.y = y;
+    Game.pickNextFishState(fish);
+    Game.spawnedFish.push(fish);
+},
     initialFish: function(){
         const initial = 20;
         for (var x=0;x <= initial;x++){
@@ -1794,7 +1988,10 @@ const Game = {
     },
 	updateFish: function(dt) {
 		for (const fish of Game.spawnedFish) {
-			fish.definition.swimPattern(fish, dt);
+			fish.stateTimer += dt;
+			if (fish.stateTimer >= fish.stateDuration) Game.pickNextFishState(fish);
+
+			Game.swimStates[fish.currentState].velocity(fish);
 
 			fish.x += fish.velocityX * dt;
 			fish.y += fish.velocityY * dt;
@@ -2189,11 +2386,100 @@ const Game = {
 			el: null,
 			toggleImg: null,
 			open: false,
+			confirmingReset: false,
 			toggleFunc: function(panel){
 				panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
-			},
+					},
 			build: function(div) {
+				div.innerHTML = "<h2>Settings</h2>";
 
+				const muteBtn = document.createElement("button");
+				muteBtn.className = "shopBtn";
+				muteBtn.textContent = Sound.muted ? "🔇 Unmute" : "🔊 Mute";
+				muteBtn.onclick = () => { Sound.toggleMute(); Game.refreshPanel("settings"); };
+				div.appendChild(muteBtn);
+
+				// --- Volume sliders ---
+				const volSection = document.createElement("div");
+				volSection.className = "statsSection";
+				volSection.innerHTML = "<h3>Volume</h3>";
+
+				const makeSlider = (label, value, onInput) => {
+					const row = document.createElement("div");
+					row.className = "volumeRow";
+					const lbl = document.createElement("span");
+					lbl.textContent = label;
+					const slider = document.createElement("input");
+					slider.type = "range"; slider.min = 0; slider.max = 1; slider.step = 0.05;
+					slider.value = value;
+					slider.oninput = () => onInput(parseFloat(slider.value));
+					row.appendChild(lbl); row.appendChild(slider);
+					return row;
+				};
+
+				volSection.appendChild(makeSlider("Master", Sound.masterVolume, v => Sound.setMasterVolume(v)));
+				for (const catName in Sound.categories) {
+					volSection.appendChild(makeSlider(catName, Sound.categories[catName].volume, v => Sound.setCategoryVolume(catName, v)));
+				}
+				div.appendChild(volSection);
+
+				// --- Autoclicker toggle ---
+				const autoSection = document.createElement("div");
+				autoSection.className = "statsSection";
+				const autoLabel = document.createElement("label");
+				const autoCheckbox = document.createElement("input");
+				autoCheckbox.type = "checkbox";
+				autoCheckbox.checked = Game.autoClicker.enabled;
+				autoCheckbox.onchange = () => { Game.autoClicker.enabled = autoCheckbox.checked; };
+				autoLabel.appendChild(autoCheckbox);
+				autoLabel.append(`Hold F to Fish (${Math.round(1 / Game.autoClicker.interval, 2)} catches/sec while held)`);
+				autoSection.appendChild(autoLabel);
+				div.appendChild(autoSection);
+
+				// --- Manual save ---
+				const saveBtn = document.createElement("button");
+				saveBtn.className = "shopBtn";
+				saveBtn.textContent = "Save Now";
+				saveBtn.onclick = () => Game.save(true);
+				div.appendChild(saveBtn);
+
+				// --- Resetting n Making sure --- 
+				if (!this.confirmingReset) {
+					const resetBtn = document.createElement("button");
+					resetBtn.className = "shopBtn dangerBtn";
+					resetBtn.textContent = "Reset Game";
+					resetBtn.onclick = () => {
+						this.confirmingReset = true;
+						Game.refreshPanel("settings");
+					};
+					div.appendChild(resetBtn);
+				} else {
+					const warn = document.createElement("p");
+					warn.className = "resetWarning";
+					warn.textContent = "Do you really really want to reset? This throws away ALL progress, forever.";
+					div.appendChild(warn);
+
+					const confirmBtn = document.createElement("button");
+					confirmBtn.className = "shopBtn dangerBtn";
+					confirmBtn.textContent = "Yes, Reset Everything";
+					confirmBtn.onclick = () => {
+						this.confirmingReset = false;
+						Game.resetGame(true);
+						Game.refreshPanel("settings");
+					};
+					div.appendChild(confirmBtn);
+
+					const cancelBtn = document.createElement("button");
+					cancelBtn.className = "shopBtn";
+					cancelBtn.textContent = "Nevermind";
+					cancelBtn.onclick = () => {
+						this.confirmingReset = false;
+						Game.refreshPanel("settings");
+					};
+					div.appendChild(cancelBtn);
+				}
+
+				div.appendChild(Game.makePanelBorder('settings', this.side));
 			}
 		},
 		stats: {
@@ -2205,9 +2491,125 @@ const Game = {
 				panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
 			},
 			build: function(div) {
+				div.innerHTML = "<h2>Stats & Fisher</h2>";
+				div.style.overflowY = "scroll";
+				// --- Character / skin picker ---
+				const charSection = document.createElement("div");
+				charSection.className = "statsSection";
+				charSection.innerHTML = "<h3>Choose Your Fisher</h3>";
+				const charGrid = document.createElement("div");
+				charGrid.className = "charGrid";
 
+				for (const character of Game.characters) {
+					for (const costume of character.costumes) {
+						const unlocked = character.unlocked && costume.unlocked;
+						const btn = document.createElement("button");
+						btn.className = "charOption" + (unlocked ? "" : " locked silhouette");
+						if (Game.playerChar.char === character.row && Game.playerChar.costume === costume.col) {
+							btn.classList.add("selected");
+						}
+						btn.appendChild(Game.renderIcon("flo_chars", costume.col, character.row, 32));
+						if (unlocked) {
+							btn.addEventListener("click", () => {
+								Game.playerChar.char = character.row;
+								Game.playerChar.costume = costume.col;
+								Game.updateStatsButtonPreview();
+								Game.refreshPanel("stats");
+							});
+						} else {
+							btn.title = "???";
+							btn.disabled = true;
+						}
+						charGrid.appendChild(btn);
+					}
+				}
+				charSection.appendChild(charGrid);
+				div.appendChild(charSection);
+
+				// --- All-time stats ---
+				const statsSection = document.createElement("div");
+				statsSection.className = "statsSection";
+				statsSection.innerHTML = `
+					<h3>All-Time Stats</h3>
+					<div class="statLine">Current Fish: ${Math.floor(Game.currentFish)}</div>
+					<div class="statLine">Total Fish Caught: ${Math.floor(Game.fishAllTime)}</div>
+					<div class="statLine">Fish Per Second: ${Game.fishPerSecond.toFixed(2)}</div>
+					<div class="statLine">Fish Per Click: ${Game.fishPerClick.toFixed(2)}</div>
+				`;
+				div.appendChild(statsSection);
+
+				// --- Upgrades purchased ---
+				const purchasedUpgrades = Game.upgrades.filter(u => u.purchased);
+				const upgradeSection = document.createElement("div");
+				upgradeSection.className = "statsSection";
+				upgradeSection.innerHTML = `<h3>Upgrades Purchased (${purchasedUpgrades.length}/${Game.upgrades.length})</h3>`;
+				const upgradeList = document.createElement("div");
+				upgradeList.className = "statsIconList";
+				for (const u of purchasedUpgrades) {
+					const wrap = document.createElement("div");
+					wrap.className = "statsIconItem";
+					wrap.title = u.name;
+					wrap.appendChild(Game.renderIcon(u.icon.sheet, u.icon.col, u.icon.row, 64));
+					upgradeList.appendChild(wrap);
+				}
+				upgradeSection.appendChild(upgradeList);
+				div.appendChild(upgradeSection);
+
+				// --- Achievements ---
+				const unlockedCount = Game.achievements.filter(a => a.unlocked).length;
+				const achSection = document.createElement("div");
+				achSection.className = "statsSection";
+				achSection.innerHTML = `<h3>Achievements (${unlockedCount}/${Game.achievements.length})</h3>`;
+				const achList = document.createElement("div");
+				achList.className = "statsIconList";
+				for (const ach of Game.achievements) {
+					const wrap = document.createElement("div");
+					wrap.className = "statsIconItem" + (ach.unlocked ? "" : " locked");
+					wrap.title = ach.unlocked ? `${ach.name}: ${ach.desc}` : "???";
+					wrap.appendChild(Game.renderIcon(ach.icon.sheet, ach.icon.col, ach.icon.row, 64));
+					achList.appendChild(wrap);
+				}
+				achSection.appendChild(achList);
+				div.appendChild(achSection);
+
+				div.appendChild(Game.makePanelBorder('stats', this.side));
+
+				//Game.updateStatsButtonPreview();
+				//setTimeout(() => {Game.refreshPanel("stats")},50)
+
+				const shareSection = document.createElement("div");
+				shareSection.className = "statsSection";
+				shareSection.innerHTML = "<h3>Share Your Fisher</h3>";
+				const yourCode = Game.encodeFisherCode(
+					Game.characters.find(c => c.row === Game.playerChar.char)?.id,
+					Game.characters.find(c => c.row === Game.playerChar.char)?.costumes.find(co => co.col === Game.playerChar.costume)?.id
+				);
+				const codeBox = document.createElement("input");
+				codeBox.readOnly = true;
+				codeBox.value = yourCode;
+				shareSection.appendChild(codeBox);
+
+				const importBox = document.createElement("input");
+				importBox.placeholder = "Paste a friend's code...";
+				const importBtn = document.createElement("button");
+				importBtn.className = "shopBtn";
+				importBtn.textContent = "Add to boat";
+				importBtn.onclick = () => {
+					const {result, ownCode} = Game.setGuestFromCode(importBox.value.trim());
+					importBox.value = '';
+					if (ownCode) {
+						importBtn.textContent = "You can't add yourself to your own boat!";
+						Game.awardAchievement("self_help")
+					}
+					importBtn.textContent = result ? `Added: ${result.name}!` : "Invalid code";
+					setTimeout(() => {importBtn.textContent = "Add to boat"},1000)
+				};
+				shareSection.appendChild(importBox);
+				shareSection.appendChild(importBtn);
+				div.appendChild(shareSection);
+				;
 			}
-		}
+		},
 	},
 	hookMenu: function() {
 		for (const id in this.panels) {
@@ -2217,17 +2619,28 @@ const Game = {
 			if (panel.build) panel.build(panel.el);
 		}
 		Game.updateShopGlow();
+		Game.updateStatsButtonPreview(); // add this
 	},
 
 	refreshPanel: function(id) {
 		const panel = this.panels[id];
 		if (panel && panel.build) panel.build(panel.el);
 	},
+	// stinky performance issues with stats eh
+	markPanelDirty: function(id) {
+		const panel = Game.panels[id];
+		if (!panel) return;
+		if (panel.open) {
+			Game.refreshPanel(id); 
+		} else {
+			panel.dirty = true; // rebuild lazily when opened
+		}
+	},
 
 	togglePanel: function(id) {
 		const panel = this.panels[id];
 		if (!panel || !panel.el) return;
-		Sound.play("click");
+		Sound.play("click",{pitch:0.8});
 		if (!panel.open) {
 			for (const otherId in this.panels) {
 				if (otherId === id) continue;
@@ -2236,9 +2649,16 @@ const Game = {
 			}
 		}
 
+		var loaded = Sound.unlock(); // this... might screw me?
+		if (loaded) Sound.play('oceanBG',{loop:true});
+
 		panel.open = !panel.open;
 		panel.el.classList.toggle("open", panel.open);
 
+		if (panel.open && panel.dirty) {
+			Game.refreshPanel(id);
+			panel.dirty = false;
+		}
 		if (panel.toggleImg) {
 			//panel.toggleImg.style.transform = panel.open ? `rotate(${panel.side==="right" ? "-90deg" : "90deg"})` : "rotate(0deg)";
 			if (panel.toggleFunc) {
@@ -2357,118 +2777,110 @@ const Game = {
 	isUpgradeTeased: function(upgrade) {
 		return Game.isTeased(upgrade.requires, id => Game.upgradesById[id]?.purchased);
 	},
-	// TOOLTIPS
-	tooltip: {
-		el: null,
-		titleEl: null,
-		flavorEl: null,
-		descEl: null,
-		metaEl: null,
-		current: null,
+	// TIERED FISH
+	// Ordered list of recolor tiers a non-starter fish progresses through. Index in this array IS
+	// the row offset from that fish's Base sprite (Base = +0, Cosmic = +12)
+	fishTierList: [
+		{ id: "base",     label: "" },
+		{ id: "wood",     label: "Wood" },
+		{ id: "stone",    label: "Stone" },
+		{ id: "coral",    label: "Coral" },
+		{ id: "silver",   label: "Silver" },
+		{ id: "gold",     label: "Gold" },
+		{ id: "emerald",  label: "Emerald" },
+		{ id: "ruby",     label: "Ruby" },
+		{ id: "diamond",  label: "Diamond" },
+		{ id: "pearl",    label: "Pearl" },
+		{ id: "infernal", label: "Infernal" },
+		{ id: "abyssal",  label: "Abyssal" },
+		{ id: "cosmic",   label: "Cosmic" }
+	],
 
-		ensure: function() {
-			if (this.el) return this.el;
+	// Default flavor per tier, used unless a fish supplies its own flavorByTier override.
+	defaultTierFlavor: {
+		base:     "Just as nature intended.",
+		wood:     "Smells vaguely of a garden shed.",
+		stone:    "Surprisingly good at skipping.",
+		coral:    "Brings its own reef wherever it goes.",
+		silver:   "Shines under a full moon.",
+		gold:     "Worth its weight in... itself, probably.",
+		emerald:  "Envy of the entire school.",
+		ruby:     "Runs a little warm to the touch.",
+		diamond:  "Cuts through the water. Literally.",
+		pearl:    "Formed under an unreasonable amount of pressure.",
+		infernal: "Do NOT put this one in the bag.",
+		abyssal:  "Came from somewhere the light doesn't reach.",
+		cosmic:   "Contains a non-zero amount of stardust."
+	},
 
-			const el = document.createElement("div");
-			el.id = "gameTooltip";
-			el.className = "gameTooltip";
+	// Registers a fish species AND its full 13-step tier-unlock upgrade chain in one call.
+	//
+	// config:
+	//   fid, name, column, baseRow  -- sprite coords: column is fixed (this species), baseRow is
+	//                                  where its Base sprite sits; every later tier is baseRow+tierIndex
+	//   yPref, yRange, swimStates, speedBase, speedRange,
+	//   bobAmount, bobFreq, wobbleStrength  -- same as addFish, describe swim behavior
+	//   sheet       -- sprite sheet key, default "flo_fish"
+	//   requires    -- prerequisite upgrade ids gating ONLY the tier-0 (unlock) purchase, default []
+	//   shop        -- which shop panel these show in, default "upgrade"
+	//   baseCost, costScale  -- tier-0 cost, and the multiplier applied per tier on top of it
+	//   flavorByTier -- optional { tierId: "custom text" } overrides
+	//   effectPerTier(tierIndex, tierId) -- optional, returns an upgrade-style `effects` object
+	//                  (e.g. { fishPerSecMult: { add: 0.005 } }) granted for reaching that tier
+	addTieredFish: function(config) {
+		const {
+			fid, name, column, baseRow, sheet = "flo_fish", iconSheet = "flo_icons", // i didn't even pass the goddamn sheet in the first place... 
+			yPref, yRange, swimStates, speedBase, speedRange,
+			bobAmount, bobFreq, wobbleStrength,
+			requires = [], shop = "upgrade",
+			baseCost = 200, costScale = 2.4,
+			flavorByTier = {}, effectPerTier = null,
+			startUnlocked = false,
+			depthStepPerTier = 20, // rarer = deeper
+			tierOverrides = null   // optional (tierIndex, tierId) => partial fish-def fields, merged in per tier 
+		} = config;
 
-			const title = document.createElement("div");
-			title.className = "gameTooltipTitle";
+		let prevUpgradeId = null;
 
-			const flavor = document.createElement("div");
-			flavor.className = "gameTooltipflavor";
+		Game.fishTierList.forEach((tier, tierIndex) => {
+			const tierFid = tierIndex === 0 ? fid : `${fid}_${tier.id}`; // base keeps the species' own id; later tiers get suffixed
+			const isBase = tierIndex === 0;
+			Game.addFish({
+				fid: tierFid, name: `${name}${isBase ? "" : ` (${tier.label})`}`,
+				column, row: baseRow + tierIndex,
+				yPref: yPref + tierIndex * depthStepPerTier, yRange,
+				swimStates, speedBase, speedRange,
+				bobAmount, bobFreq, wobbleStrength,
+				unlocked: isBase && startUnlocked,
+				tierIndex, baseRow,
+				...(tierOverrides ? tierOverrides(tierIndex, tier.id) : {})
+			});
 
-			const desc = document.createElement("div");
-			desc.className = "gameTooltipDesc";
+			if (startUnlocked && isBase) return;
 
-			const meta = document.createElement("div");
-			meta.className = "gameTooltipMeta";
+			const upgradeId = `${fid}_tier_${tier.id}`;
+			const cost = Math.ceil(baseCost * Math.pow(costScale, tierIndex));
+			const flavor = flavorByTier[tier.id] || Game.defaultTierFlavor[tier.id];
+			const tierRequires = prevUpgradeId ? [prevUpgradeId] : requires;
 
-			el.appendChild(title);
-			el.appendChild(flavor);
-			el.appendChild(desc);
-			el.appendChild(meta);
-			document.body.appendChild(el);
-
-			this.el = el;
-			this.titleEl = title;
-			this.flavorEl = flavor;
-			this.descEl = desc;
-			this.metaEl = meta;
-			return el;
-		},
-
-		show: function(item, opts, labelText, anchorEl) {
-			this.ensure();
-			this.current = item;
-
-			this.titleEl.textContent = opts.unlocked ? labelText.name : "???";
-
-			this.flavorEl.textContent = opts.unlocked ? (labelText.flavor || "") : "";
-			this.flavorEl.classList.toggle("shown", !!(opts.unlocked && labelText.flavor));
-
-			this.descEl.textContent = opts.unlocked ? (labelText.desc || "") : "A mysterious find.";
-			this.metaEl.innerHTML = "";
-
-			if (opts.unlocked) {
-				const cost = document.createElement("div");
-				cost.textContent = `Cost: ${labelText.cost} Fish`;
-				this.metaEl.appendChild(cost);
-
-				if (opts.dataType === "building") {
-					const rate = item.baseRate * item.rateMult;
-
-					const owned = document.createElement("div");
-					owned.textContent = `Owned: ${item.owned}`;
-					this.metaEl.appendChild(owned);
-
-					const perBuilding = document.createElement("div");
-					perBuilding.textContent = `Produces: ${rate.toFixed(2)} Fish/sec each`;
-					this.metaEl.appendChild(perBuilding);
-
-					if (item.owned > 0) {
-						const total = document.createElement("div");
-						total.textContent = `Producing: ${(rate * item.owned).toFixed(2)} Fish/sec total`;
-						this.metaEl.appendChild(total);
-					}
+			Game.addUpgrade({
+				id: upgradeId,
+				name: isBase ? `Unlock: ${name}` : `${name} (${tier.label})`,
+				desc: isBase ? `A new fish joins the sea: the ${name}!` : `A ${tier.label} ${name}! Also Fish Per Second increases by 5%!`,
+				flavor,
+				cost,
+				shop,
+				requires: tierRequires,
+				icon: { sheet: iconSheet, col: column, row: baseRow + tierIndex },
+				purchased: false,
+				effects: effectPerTier ? effectPerTier(tierIndex, tier.id) : {fishPerSecMult: 0.05},
+				onBuy: function() {
+					Game.allFishById[tierFid].unlocked = true;
 				}
-			} else {
-				const missing = opts.requires
-					.filter(id => !opts.isDone(id))
-					.map(id => opts.lookupName(id) || "???");
-				const req = document.createElement("div");
-				req.textContent = `Requires: ${missing.join(", ")}`;
-				this.metaEl.appendChild(req);
-			}
+			});
 
-			this.el.classList.add("open");
-			this.reposition(anchorEl);
-		},
-
-		reposition: function(anchorEl) {
-			if (!this.el || !anchorEl) return;
-			const rect = anchorEl.getBoundingClientRect();
-			const tipRect = this.el.getBoundingClientRect();
-			const margin = 10;
-
-			let x = rect.right + margin;
-			if (x + tipRect.width > window.innerWidth - margin) x = rect.left - tipRect.width - margin;
-			x = Math.max(margin, x);
-
-			let y = rect.top;
-			if (y + tipRect.height > window.innerHeight - margin) y = window.innerHeight - tipRect.height - margin;
-			y = Math.max(margin, y);
-
-			this.el.style.left = `${x}px`;
-			this.el.style.top = `${y}px`;
-		},
-
-		hide: function() {
-			if (!this.el) return;
-			this.current = null;
-			this.el.classList.remove("open");
-		}
+			prevUpgradeId = upgradeId;
+		});
 	},
 	renderShopItem: function(item, opts, labelText) { // fixed ^^
 		const btn = document.createElement("button");
@@ -2522,7 +2934,9 @@ const Game = {
 		Game.updateFishDisplay();
 		Game.refreshPanel(upgrade.shop === "cultist" ? "cultist" : "upgrade");
 		Game.fishDirty = true;
+		Game.markPanelDirty("stats")
 		Game.updateShopGlow();
+		
 	},
 
 	hasAffordableShopUpgrade: function(shopId) {
@@ -2603,7 +3017,9 @@ const Game = {
 
 		Game.updateFishDisplay()
 		Game.refreshPanel("building");
+		Game.markPanelDirty("stats")
 		Game.fishDirty = true;
+		
 	},
 	recalcStats: function() {
 		const addStats = { ...Game.baseStats };
@@ -2612,8 +3028,7 @@ const Game = {
 		const buildingMult = {};
 
 		for (const mod of Game.statModifiers) {
-			const type = mod.type || "add";
-
+			const type = mod.type || "add"; 
 			if (mod.stat.startsWith("building:")) {
 				const buildingId = mod.stat.split(":")[1];
 				if (type === "mult") {
@@ -2640,7 +3055,7 @@ const Game = {
 		Game.dayPower = addStats.dayPower;
 		Game.nightPower = addStats.nightPower;
 		Game.eclipsePower = addStats.eclipsePower;
-		Game.cookieStormPower = addStats.cookieStormPower;
+		Game.cookieStormPower = addStats.cookieStormPower; // ~~once jumpscared myself with this~~
 
 		for (const building of Game.buildings) {
 			const add = buildingAdd[building.id] ?? 0;
@@ -2764,6 +3179,120 @@ const Game = {
 		Game.updateFishDisplay();
 	},
 
+	// TOOLTIPS
+	tooltip: {
+		el: null,
+		titleEl: null,
+		flavorEl: null,
+		descEl: null,
+		metaEl: null,
+		current: null,
+
+		ensure: function() {
+			if (this.el) return this.el;
+
+			const el = document.createElement("div");
+			el.id = "gameTooltip";
+			el.className = "gameTooltip";
+
+			const title = document.createElement("div");
+			title.className = "gameTooltipTitle";
+
+			const flavor = document.createElement("div");
+			flavor.className = "gameTooltipflavor";
+
+			const desc = document.createElement("div");
+			desc.className = "gameTooltipDesc";
+
+			const meta = document.createElement("div");
+			meta.className = "gameTooltipMeta";
+
+			el.appendChild(title);
+			el.appendChild(flavor);
+			el.appendChild(desc);
+			el.appendChild(meta);
+			document.body.appendChild(el);
+
+			this.el = el;
+			this.titleEl = title;
+			this.flavorEl = flavor;
+			this.descEl = desc;
+			this.metaEl = meta;
+			return el;
+		},
+
+		show: function(item, opts, labelText, anchorEl) {
+			this.ensure();
+			this.current = item;
+
+			this.titleEl.textContent = opts.unlocked ? labelText.name : "???";
+
+			this.flavorEl.textContent = opts.unlocked ? (labelText.flavor || "") : "";
+			this.flavorEl.classList.toggle("shown", !!(opts.unlocked && labelText.flavor));
+
+			this.descEl.textContent = opts.unlocked ? (labelText.desc || "") : "A mysterious find.";
+			this.metaEl.innerHTML = "";
+
+			if (opts.unlocked) {
+				const cost = document.createElement("div");
+				cost.textContent = `Cost: ${labelText.cost} Fish`;
+				this.metaEl.appendChild(cost);
+
+				if (opts.dataType === "building") {
+					const rate = item.baseRate * item.rateMult;
+
+					const owned = document.createElement("div");
+					owned.textContent = `Owned: ${item.owned}`;
+					this.metaEl.appendChild(owned);
+
+					const perBuilding = document.createElement("div");
+					perBuilding.textContent = `Produces: ${rate.toFixed(2)} Fish/sec each`;
+					this.metaEl.appendChild(perBuilding);
+
+					if (item.owned > 0) {
+						const total = document.createElement("div");
+						total.textContent = `Producing: ${(rate * item.owned).toFixed(2)} Fish/sec total`;
+						this.metaEl.appendChild(total);
+					}
+				}
+			} else {
+				const missing = opts.requires
+					.filter(id => !opts.isDone(id))
+					.map(id => opts.lookupName(id) || "???");
+				const req = document.createElement("div");
+				req.textContent = `Requires: ${missing.join(", ")}`;
+				this.metaEl.appendChild(req);
+			}
+
+			this.el.classList.add("open");
+			this.reposition(anchorEl);
+		},
+
+		reposition: function(anchorEl) {
+			if (!this.el || !anchorEl) return;
+			const rect = anchorEl.getBoundingClientRect();
+			const tipRect = this.el.getBoundingClientRect();
+			const margin = 10;
+
+			let x = rect.right + margin;
+			if (x + tipRect.width > window.innerWidth - margin) x = rect.left - tipRect.width - margin;
+			x = Math.max(margin, x);
+
+			let y = rect.top;
+			if (y + tipRect.height > window.innerHeight - margin) y = window.innerHeight - tipRect.height - margin;
+			y = Math.max(margin, y);
+
+			this.el.style.left = `${x}px`;
+			this.el.style.top = `${y}px`;
+		},
+
+		hide: function() {
+			if (!this.el) return;
+			this.current = null;
+			this.el.classList.remove("open");
+		}
+	},
+
 	// SAVE / LOAD / OFFLINE PROGRESS
 	save: function(showToast = true) {
 		if (!window.localStorage) {
@@ -2796,7 +3325,28 @@ const Game = {
 					duration: Game.specialWeather.duration,
 					elapsed: Game.specialWeather.elapsed
 				}
-			}
+			},
+			playerChar: {
+				char: Game.playerChar.char,
+				costume: Game.playerChar.costume
+			},
+			characters: Game.characters.map(c => ({
+				id: c.id, unlocked: c.unlocked,
+				costumes: c.costumes.map(co => ({ id: co.id, unlocked: co.unlocked }))
+			})),
+			playerId: Game.ensurePlayerId(),
+			settings: {
+				autoClickerEnabled: Game.autoClicker.enabled,
+				masterVolume: Sound.masterVolume,
+				categoryVolumes: {
+					sfx: Sound.categories.sfx.volume,
+					music: Sound.categories.music.volume,
+					ambient: Sound.categories.ambient.volume
+				},
+				muted: Sound.muted
+			},
+			guestChar: Game.guestChar, // { charId, costumeId, name, costumeName } or null
+		
 		};
 
 		try {
@@ -2807,7 +3357,7 @@ const Game = {
 			console.warn("Fish game: save failed", e);
 		}
 	},
-
+	
 	load: function() {
 		let raw = null;
 		try {
@@ -2826,6 +3376,7 @@ const Game = {
 		}
 
 		if (data) {
+			
 			Game.currentFish = data.currentFish || 0;
 			Game.fishAllTime = data.fishAllTime || 0;
 
@@ -2841,30 +3392,64 @@ const Game = {
 					building.rateMult = saved.rateMult || 1;
 				}
 			}
-		}
-		if (data && data.env) {
-			Game.weather.current = data.env.weatherCurrent || "clear";
-			Game.weather.target = data.env.weatherTarget || null;
-			Game.weather.blend = data.env.weatherBlend ?? 1;
-			Game.weatherNextCheck = data.env.weatherNextCheck || null;
-			Game.weatherChance = data.env.weatherChance || Game.baseWeatherChance;
-			Game.dayNight.progress = data.env.dayNightProgress ?? 0;
+			if (data.env) {
+				Game.weather.current = data.env.weatherCurrent || "clear";
+				Game.weather.target = data.env.weatherTarget || null;
+				Game.weather.blend = data.env.weatherBlend ?? 1;
+				Game.weatherNextCheck = data.env.weatherNextCheck || null;
+				Game.weatherChance = data.env.weatherChance || Game.baseWeatherChance;
+				Game.dayNight.progress = data.env.dayNightProgress ?? 0;
 
-			var special = data.env.specialWeather;
-			if (special) {
-				Game.specialWeather.active = special.active || null;
-				Game.specialWeather.duration = special.duration || 0;
-				Game.specialWeather.elapsed = special.elapsed || 0;
+				var special = data.env.specialWeather;
+				if (special) {
+					Game.specialWeather.active = special.active || null;
+					Game.specialWeather.duration = special.duration || 0;
+					Game.specialWeather.elapsed = special.elapsed || 0;
+				}
 			}
-		}
 
+			if (data.playerChar) {
+				Game.playerChar.char = data.playerChar.char ?? 0;
+				Game.playerChar.costume = data.playerChar.costume ?? 0;
+			}
+			for (const savedChar of data.characters || []) {
+				const character = Game.charactersById[savedChar.id];
+				if (!character) continue;
+				character.unlocked = character.unlocked || savedChar.unlocked;
+				for (const savedCostume of savedChar.costumes || []) {
+					const costume = character.costumes.find(c => c.id === savedCostume.id);
+					if (costume) costume.unlocked = costume.unlocked || savedCostume.unlocked;
+				}
+			}
+
+			if (data.playerId) Game.playerId = data.playerId; 
+
+			if (data.settings) {
+				Game.autoClicker.enabled = data.settings.autoClickerEnabled ?? false;
+				console.log(Game.autoClicker.enabled)
+				Sound.muted = data.settings.muted ?? false;
+				Sound.setMasterVolume(data.settings.masterVolume ?? Sound.masterVolume);
+				for (const catName in data.settings.categoryVolumes || {}) {
+					Sound.setCategoryVolume(catName, data.settings.categoryVolumes[catName]);
+				}
+				// masterGainNode/category gainNodes don't exist until Sound.init() runs (on first Sound.unlock()),
+				// so re-apply muted state once that happens rather than assuming it's already live here
+			}
+
+			if (data.guestChar) Game.guestChar = data.guestChar;
+		}
+		else {
+			console.log("No data found")
+		}
 		Game.checkOceanEvent();
 		Game.updateSkyBody();
+		Game.updateStatsButtonPreview();
 		Game.syncUpgradeStatModifiers();
 		Game.recalcGains();
 		Game.updateFishDisplay();
 		Game.refreshPanel("upgrade");
 		Game.refreshPanel("building");
+		Game.refreshPanel("settings");
 
 		const elapsed = data?.lastSaveTime ? (Date.now() - data.lastSaveTime) / 1000 : 0;
 		Game.lastSaveTime = data?.lastSaveTime || Date.now();
@@ -2998,7 +3583,6 @@ const Game = {
 
     },
     // Achievements
-
     achievements: [],
     achievementsById: {},
     addAchievement: function(data) {
@@ -3008,12 +3592,20 @@ const Game = {
     checkAchievements: function() {
         for (const ach of Game.achievements) {
             if (ach.unlocked) continue;
-            if (ach.check(Game)) {
-                ach.unlocked = true;
-                Game.showAchievementPopup(ach);
-                console.log("Achievement unlocked:", ach.name);
-            }
+            if (ach.check && ach.check(Game)) Game.awardAchievement(ach.id); // polled achievements still run through here every tick
         }
+    },
+    // Directly unlocks one achievement by id 
+    awardAchievement: function(id) {
+        const ach = Game.achievementsById[id];
+        if (!ach || ach.unlocked) return;
+
+        ach.unlocked = true;
+        if (ach.award) ach.award(Game); // one-time payout
+        Game.showAchievementPopup(ach);
+        console.log("Achievement unlocked:", ach.name);
+        Game.markPanelDirty("stats");
+        Game.checkCharacterUnlocks();
     },
     showAchievementPopup: function(ach) {
         const popup = getEle("achievementPopup");
@@ -3029,6 +3621,11 @@ const Game = {
             console.log(`Achievement Unlocked: ${ach.name} - ${ach.desc}`);
         }
     },
+	getAchievementPercent: function() { // used by the char unlocker and some other things
+		if (Game.achievements.length === 0) return 0;
+		return Game.achievements.filter(a => a.unlocked).length / Game.achievements.length;
+	},
+
     // ACTIVE BUFF DISPLAY (day/night + special weather bonuses from applyEnvironmentalStats)
 	buffDisplayEl: null,
 	ensureBuffDisplay: function() {
@@ -3084,19 +3681,125 @@ const Game = {
 		Game.lastRenderedBuffIds = idKey;
 	}
 };
-
+// SWIM STATES
+// Need a better way to do this
+Game.swimStates= {
+    drift: { // steady straight-line cruising with a gentle bob 
+        minDuration: 4, maxDuration: 9,
+        velocity: function(fish) {
+            fish.velocityX = fish.direction * fish.speed;
+            fish.velocityY = Math.sin(Game.time * (fish.bobFreq ?? 0.8) + fish.phase) * (fish.bobAmount ?? 5);
+        }
+    },
+    lurk: { // barely moving
+        minDuration: 2, maxDuration: 5,
+        velocity: function(fish) {
+            fish.velocityX = fish.direction * fish.speed * 0.2;
+            fish.velocityY = Math.sin(Game.time * (fish.bobFreq ?? 0.15) + fish.phase) * (fish.bobAmount ?? 1.5);
+        }
+    },
+    dart: { // quick skittish burst
+        minDuration: 0.4, maxDuration: 1.2,
+        velocity: function(fish) {
+            fish.velocityX = fish.direction * fish.speed * 2.5;
+            fish.velocityY = Math.sin(Game.time * (fish.bobFreq ?? 3) + fish.phase) * (fish.bobAmount ?? 8);
+        }
+    },
+    wobble: { // eel/octopus-style squiggle
+        minDuration: 3, maxDuration: 7,
+        velocity: function(fish) {
+            fish.velocityX = fish.direction * fish.speed + Math.sin(Game.time * 0.5 + fish.phase) * (fish.wobbleStrength ?? 3);
+            fish.velocityY = Math.sin(Game.time * (fish.bobFreq ?? 0.4) + fish.phase) * (fish.bobAmount ?? 10);
+        }
+    },
+    hover: { // near-stationary bobbing
+        minDuration: 3, maxDuration: 6,
+        velocity: function(fish) {
+            fish.velocityX = fish.direction * fish.speed * 0.05;
+            fish.velocityY = Math.sin(Game.time * (fish.bobFreq ?? 1.5) + fish.phase) * (fish.bobAmount ?? 6);
+        }
+    },
+	floor: {}
+}
+Game.pickNextFishState = function(fish) {
+    const states = fish.definition.swimStates;
+    const candidates = states.length > 1 ? states.filter(s => s !== fish.currentState) : states;
+    fish.currentState = choose(candidates);
+    const def = Game.swimStates[fish.currentState];
+    fish.stateDuration = def.minDuration + Math.random() * (def.maxDuration - def.minDuration);
+    fish.stateTimer = 0;
+}
 const swimDrift = function(fish, dt) {
 	fish.velocityX = fish.direction * fish.speed;
 	fish.velocityY = Math.sin(
 		Game.time * 0.8 + fish.phase
 	) * 5;
 }
+
+Game.addTieredFish({
+    fid: "flo_bream",
+    name: "Bream",
+    column: 0,
+    baseRow: 0,     
+    yPref: 100, yRange: 200,
+    swimStates: ["drift"],
+    speedBase: 10, speedRange: 10,
+    baseCost: 150, costScale: 2.2,
+	flavorByTier:{
+		base:     "Basically Breaming with Joy!", // Flavor text is HARD what the fuck
+		wood:     "Smells vaguely of a garden shed.",
+		stone:    "Surprisingly good at skipping.",
+		coral:    "Brings its own reef wherever it goes.",
+		silver:   "Shines under a full moon.",
+		gold:     "Worth its weight in... itself, probably.",
+		emerald:  "Envy of the entire school.",
+		ruby:     "Runs a little warm to the touch.",
+		diamond:  "Cuts through the water. Literally.",
+		pearl:    "Formed under an unreasonable amount of pressure.",
+		infernal: "Do NOT put this one in the bag.",
+		abyssal:  "Came from somewhere the light doesn't reach.",
+		cosmic:   "Contains a non-zero amount of stardust."
+	},
+    startUnlocked: true 
+});
+Game.addTieredFish({
+    fid: "flo_crappie",
+    name: "Crappie",
+    column: 1,
+    baseRow: 0,     
+    yPref: 150, yRange: 250,
+    swimStates: ["drift"],
+    speedBase: 10, speedRange: 10,
+    baseCost: 50, costScale: 1.5,
+	flavorByTier:{
+		base:     "Basically Breaming with Joy!",
+		wood:     "Smells vaguely of a garden shed.",
+		stone:    "Surprisingly good at skipping.",
+		coral:    "Brings its own reef wherever it goes.",
+		silver:   "Shines under a full moon.",
+		gold:     "Worth its weight in... itself, probably.",
+		emerald:  "Envy of the entire school.",
+		ruby:     "Runs a little warm to the touch.",
+		diamond:  "Cuts through the water. Literally.",
+		pearl:    "Formed under an unreasonable amount of pressure.",
+		infernal: "Do NOT put this one in the bag.",
+		abyssal:  "Came from somewhere the light doesn't reach.",
+		cosmic:   "Contains a non-zero amount of stardust."
+	},
+    startUnlocked: false 
+});
+
+
+
+/// ACHIEVEMENTS
+
 /////////////////////////
 //FISH DEFS
 Game.addAchievement({
-    id: "ach_fisherman",
-    name: "Fisherman",
+    id: "amateur_fish",
+    name: "Amateur Angler",
     desc: "Catch 100 fish.",
+	flavor: "Like yeah sure you're basically pro among normal people but...",
     check: function(game) {
         return game.fishAllTime >= 100;
     },
@@ -3107,156 +3810,35 @@ Game.addAchievement({
         row: 0
     }
 });
-Game.addFish({
-	fid: "flo_anglerfish",
-	name: "Anglerfish",
-	row: 2,
-	column: 0,
+
+
+Game.addAchievement({
+	id:"self_help",
+	name: "Self Help Book",
+	desc: "Tried to add yourself to your own boat...",
+	flavor: "This can also happen if someone else rolls the same ID as you. At which point aren't they basically you?",
 	unlocked: false,
-	yPref: 300,
-	yRange: 100,
-	swimStates: ["drift", "lurk"],
-	swimPattern: function(fish, dt) {
-		fish.velocityX = fish.direction * fish.speed;
-		fish.velocityY = Math.sin(
-			Game.time * 0.1 + fish.phase
-		) * 0.95;
-	},
-	speedBase: 10,
-	speedRange: 10,
+	icon: {
+        sheet: "flo_icons_ui",
+        col: 0,
+        row: 0
+    }
 });
-Game.addFish({
-	fid: "flo_largemouth_bass",
-	name: "Largemouth Bass",
-	row: 2,
-	column: 1,
+
+
+Game.addAchievement({
+	id:"friends",
+	name: "Fishing Friends!",
+	desc: "Added a fellow fisher!",
+	flavor: "Two fishers is better than one right? Too bad they're too damn lazy to do anything.",
 	unlocked: false,
-	yPref: 100,
-	yRange: 300,
-	swimStates: ["drift", "lurk"],
-	swimPattern: swimDrift,
-	speedBase: 10,
-	speedRange: 10,
+	icon: {
+        sheet: "flo_icons_ui",
+        col: 0,
+        row: 0
+    }
 });
 
-Game.addFish({
-	fid: "flo_spotted_moray",
-	name: "Spotted Moray Eel",
-	row: 2,
-	column: 2,
-	unlocked: false,
-	yPref: 100,
-	yRange: 200,
-	swimStates: ["drift", "lurk"],
-	swimPattern: function(fish, dt) {
-		fish.velocityX = fish.direction * fish.speed + Math.sin(Game.time * 0.5 + fish.phase);
-		fish.velocityY = Math.sin(
-			Game.time * 0.4 + fish.phase
-		) * 10;
-	},
-	speedBase: 10,
-	speedRange: 10,
-});
-
-Game.addFish({
-	fid: "flo_sunfish",
-	name: "Sunfish",
-	row: 2,
-	column: 3,
-	unlocked: false,
-	yPref: 100,
-	yRange: 200,
-	swimStates: ["drift", "lurk"],
-	swimPattern: function(fish, dt) {
-		fish.velocityX = fish.direction * fish.speed
-		fish.velocityY = Math.sin(
-			Game.time * 0.1 + fish.phase
-		) * 0.5;
-	},
-	speedBase: 10,
-	speedRange: 10,
-});
-
-Game.addFish({
-	fid: "flo_octopus",
-	name: "Octopus",
-	row: 4,
-	column: 9,
-	unlocked: false,
-	yPref: 100,
-	yRange: 200,
-	swimStates: ["drift", "lurk"],
-	swimPattern: function(fish, dt) {
-		fish.velocityX = fish.direction * fish.speed + Math.sin(
-			Game.time * 0.1);
-		fish.velocityY = Math.sin(
-			Game.time * 1.1 + fish.phase
-		) * 10;
-	},
-	speedBase: 5,
-	speedRange: 5,
-});
-
-Game.addFish({
-	fid: "flo_cod",
-	name: "Cod",
-	row: 2,
-	column: 9,
-
-	unlocked: true,
-
-	yPref: 100, //where 0 is surface
-	yRange: 400,
-	swimStates: ["drift", "lurk"],
-
-	swimPattern: swimDrift,
-	speedBase: 15,
-	speedRange: 25,
-});
-
-Game.addFish({
-	fid: "flo_seahorse",
-	name: "Seahorse",
-	row: 6,
-	column: 0,
-
-	unlocked: false,
-
-	yPref: 300, //where 0 is surface
-	yRange: 200,
-	swimStates: ["drift", "lurk"],
-
-	swimPattern: function(fish, dt) {
-		fish.velocityX = fish.direction * fish.speed;
-		fish.velocityY = Math.sin(
-			Game.time * 1.5 + fish.phase
-		) * 5;
-	},
-	speedBase: 10,
-	speedRange: 5,
-});
-
-Game.addFish({
-	fid: "flo_lionfish",
-	name: "Lionfish",
-	row: 5,
-	column: 5,
-
-	unlocked: false,
-
-	yPref: 100, //where 0 is surface
-	yRange: 100,
-	swimStates: ["drift", "lurk"],
-
-	swimPattern: function(fish, dt) {
-		fish.velocityX = fish.direction * fish.speed;
-		fish.velocityY = Math.sin(
-			Game.time * 0.5 + fish.phase
-		) * 5;
-	},
-	speedBase: 10,
-	speedRange: 5,
-});
 
 // BUILDINGS
 Game.addBuilding({
@@ -3300,10 +3882,94 @@ Game.addBuilding({
 });
 
 Game.addBuilding({
-	id: "grandpa",
-	name: "Grandpa",
-	desc: "A Grandpa to Fish for you!",
-	flavor: "Ramblin' 'n' Grumblin' free of charge!",
+	id: "fisher",
+	name: "Fisherperson",
+	desc: "Somebody to fish for you.",
+	flavor: "Quality not assured.",
+	baseRate: 15,
+	baseCost: 2500,
+	costScale: 1.15,
+	requires: [],
+	icon: {
+		sheet: "flo_icons_ui",
+		col: 2,
+		row: 0
+	},
+	owned: 0,
+	onBuy: function(b) {
+		
+	}
+});
+
+
+Game.addBuilding({
+	id: "flyfisher",
+	name: "Fly Fisher",
+	desc: "Hovers above the water for optimal angling.",
+	flavor: "You pay for what you get.",
+	baseRate: 50,
+	baseCost: 5000,
+	costScale: 1.15,
+	requires: [],
+	icon: {
+		sheet: "flo_icons_ui",
+		col: 2,
+		row: 0
+	},
+	owned: 0,
+	onBuy: function(b) {
+		
+	}
+});
+
+
+Game.addBuilding({
+	id: "trawler",
+	name: "Trawler",
+	desc: "A big boat to haul in the Fish!",
+	flavor: `"Get yer own Crew!"`,
+	baseRate: 500,
+	baseCost: 20000,
+	costScale: 1.15,
+	requires: [],
+	icon: {
+		sheet: "flo_icons_ui",
+		col: 2,
+		row: 0
+	},
+	owned: 0,
+	onBuy: function(b) {
+		
+	}
+});
+
+
+Game.addBuilding({
+	id: "rig",
+	name: "Longline Rig",
+	desc: "Round-the-clock fishing from a platform on the sea.",
+	flavor: `Go on, get yourself a nice new rig...`,
+	baseRate: 5000,
+	baseCost: 50000,
+	costScale: 1.15,
+	requires: [],
+	icon: {
+		sheet: "flo_icons_ui",
+		col: 2,
+		row: 0
+	},
+	owned: 0,
+	onBuy: function(b) {
+		
+	}
+});
+
+
+Game.addBuilding({
+	id: "submarine",
+	name: "Submarine",
+	desc: "A Sub that hunts out Fish.",
+	flavor: "Take the fight to them!",
 	baseRate: 15,
 	baseCost: 2500,
 	costScale: 1.15,
@@ -3526,6 +4192,16 @@ Game.addUpgrade({
 	}
 });
 
+Game.addCharacter({ id: "flo", name: "Flo", row: 0, startUnlocked: true });
+Game.addCostume("flo", { id: "default", name: "Default", col: 0, startUnlocked: true });
+Game.addCostume("flo", { id: "sailor", name: "Sailor Stripes", col: 1, unlockAchievements: ["ach_fisherman"] });
+
+Game.addCharacter({ id: "salty", name: "Salty Pete", row: 1, unlockAchievementPct: 0.25 });
+Game.addCostume("salty", { id: "default", name: "Default", col: 0, startUnlocked: true });
+
+Game.addCharacter({id: "joebones", name: "Bones", row: 4,  startUnlocked: true});
+Game.addCostume("joebones", {id: "joedefault", name: "Default", col: 0, startUnlocked: true});
+Game.addCostume("joebones", {id: "holiday", name: "Beach Bones", col: 1, unlockAchievements: ["ach_party_bones"]});
 // OCEAN EVENTS
 Game.addOceanEvent({
 	id: "planktonBloom",
