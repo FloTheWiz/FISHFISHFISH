@@ -392,7 +392,7 @@ const Game = {
 		"flo_boatback": "img/boatbackx2.png",
 		"flo_rod":"img/basicrodx2.png", // just the 1 rod rn
 		//"flo_chars": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/chars2x4.png",
-		"flo_chars": "/img/spritetest2.png", // placeholder
+		"flo_chars": "img/spritetest2.png", // placeholder
 		"flo_portraits": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/portraits3x2.png",
 		"flo_icons_ui": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/fish_spritesheetx2.png", // soon to be phased out 64x
 		"flo_sky_bodies": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/sunsx2.png",
