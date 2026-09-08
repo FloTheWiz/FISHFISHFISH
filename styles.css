@@ -1,11 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400..700;1,400..700&family=Londrina+Solid:wght@100;300;400;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400..700;1,400..700&family=Londrina+Solid:wght@100;300;400;900&family=VT323&display=swap');
+
+@font-face {
+    font-family: 'Pawscript';
+    src: url('fnt/pawscript.ttf')  format('truetype'), /* Safari, Android, iOS */
+}
+
+
+
 
 .mainFont {
-    font-family: "Libre Baskerville", serif;
-    font-optical-sizing: auto;
-    /* <weight>: Use a value from 400 to 700*/
-    font-weight: 600;
-    font-style: normal;
+      font-family: "Pawscript", monospace;
+  font-weight: 400;
+  font-style: normal;
     
 }
 
@@ -104,25 +110,24 @@ body {
 }
 
 #text>h1 {
-
-    font-size: 2.5em;
+    text-shadow: 0 0 black;
+    font-size: 4.5vw;
 }
 
 #text>h2 {
-    font-size: 2.0em
+    text-shadow: 0 0 black;
+    font-size: 2.5vw
 }
 
 @media (max-width: 550px) {
-    #text>h1 {
-
-        font-size: 1.5em;
-    }
-
-    #text>h2 {
-        font-size: 1.0em
-    }
+   #text>h1{font-size: 5vw;}
+   #text>h2{font-size: 3vw;}
 }
 
+@media (min-width: 1500px) {
+   #text>h1{font-size: 3vw;}
+   #text>h2{font-size: 2vw;}
+}
 .panelToggle {
     position: absolute;
     z-index: 2;
@@ -149,7 +154,6 @@ body {
 .charOption.selected { border-color: #ffcc55; border-radius: 6px; }
 .statsIconList { display: flex; flex-wrap: wrap; gap: 6px; }
 .statsIconItem {filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5))}
-.statsIconItem.locked { opacity: 0.1;}
 .resetWarning { color: #ff8080; font-weight: bold; }
 .dangerBtn { border-color: #ff5050 !important; }
 .comingSoon { opacity: 0.6; font-style: italic; }
@@ -605,4 +609,55 @@ button.locked .spriteIcon {
     display: flex;
     flex-direction: column;
     gap: 2px;
+}
+.achievementPopup {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translate(-50%, 120%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(20, 20, 30, 0.92);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: 2px solid #ffcc55;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    font-family: monospace;
+    font-size: 14px;
+    max-width: 80vw;
+    z-index: 10000;
+    pointer-events: none;
+    transition: transform 0.4s ease, opacity 0.4s ease;
+    opacity: 0;
+}
+
+.achievementPopup.open {
+    transform: translate(-50%, 0);
+    opacity: 1;
+}
+
+.achievementPopupIcon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+#achievementPopupText {
+    margin: 0;
+}
+
+.statsframe {
+    width: 72px;
+    height: 72px;
+    background-image: url(img/frame1.png);
+    position:relative;
+}
+.statsframe > div {
+    position:absolute;
+    top:4px;
+    left:4px;
+}
+.statsframe.unlocked {
+    background-position:72px 0px
 }

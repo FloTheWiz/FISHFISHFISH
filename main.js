@@ -386,16 +386,18 @@ const Game = {
 	// Sound
 	// SPRITE LOADING
 	spritesOnBoot: { // named to avoid namespace collision, feel free to mod some in
-		"flo_fish": "img/iconsx32.png", // 32x, smaller
+		"flo_fish": "img/iconsx64.png", // 32x, smaller.. ironic named i think
 		"flo_icons": "img/icons.png", // 64x, bigger, for UI 
-		"flo_boatfront": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-front.png",
-		"flo_boatback": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/boat-back.png",
-		"flo_chars": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/chars2.png",
+		"flo_boatfront": "img/boatfrontx2.png", // 2x size
+		"flo_boatback": "img/boatbackx2.png",
+		"flo_rod":"img/basicrodx2.png", // just the 1 rod rn
+		//"flo_chars": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/chars2x4.png",
+		"flo_chars": "/img/spritetest2.png", // placeholder
 		"flo_portraits": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/portraits3x2.png",
 		"flo_icons_ui": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/fish_spritesheetx2.png", // soon to be phased out 64x
 		"flo_sky_bodies": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/sunsx2.png",
-		"flo_clouds": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/normalclouds.png",
-		"flo_seagull": "https://raw.githubusercontent.com/FloTheWiz/miscc/refs/heads/main/seagull.png"
+		"flo_clouds": "img/normalclouds.png",
+		"flo_seagull": "img/seagullx2.png"
 	},
 
 	imgs: {},
@@ -558,7 +560,7 @@ const Game = {
 
 		Game.drawParticles();
 		Game.drawWater(dt, 2.0, 0.3,false);
-
+		Game.drawWaterVignette();
 		Game.drawFish();
 		Game.drawWater(dt, 1.0, 0.5,false);
 		Game.rainManager.draw(Game.ctx);
@@ -660,13 +662,13 @@ const Game = {
 	// CLICK EVENTS
 
 	boatHitbox: {
-		width: 300,
-		height: 240
+		width: 200,
+		height: 140
 	},
 	isBoatClicked: false,
 	isPointInBoat: function(x, y) {
 		const boatX = Game.centerX;
-		const boatY = Game.waterLine - 50;
+		const boatY = Game.waterLine - 10;
 
 		const halfWidth = Game.boatHitbox.width / 2;
 		const halfHeight = Game.boatHitbox.height / 2;
@@ -714,7 +716,7 @@ const Game = {
 		}
 
 		if (!Game.boat.isHovered) return;
-		Game.boat.scale = 0.88;
+		
 		Game.catchFish(e);
 		Game.updateShopAffordability();
 
@@ -722,7 +724,7 @@ const Game = {
 
 	// Catching
 	catchFish: function(e) {
-		
+		Game.boat.scale = 0.88;
 		Sound.play('clickfish',{pitchVariance:0.35,volumeVariance:0.1})
 		Game.gainFish(Game.fishPerClick);
 
@@ -792,8 +794,7 @@ const Game = {
 			// Stuff that needs to happen BEFORE ascending
 			Game.hideAscendUI(); // now correctly removes 'visible';
 			this.doPopup();
-			Game.spawnedFish = [];
-			Game.initialFish();
+			
 			Game.resetGame(false);
 		},
 
@@ -1352,11 +1353,11 @@ const Game = {
 
 			while (this.drops.length < targetCount) {
 				const d = this.makeDrop();
-				d.y = Math.random() * Game.canvas.height; // scatter on spawn so a storm doesn't start with an empty screen
+				d.y = Math.random() * Game.canvas.height; 
 				this.drops.push(d);
 			}
 			if (this.drops.length > targetCount) {
-				this.drops.length = targetCount; // hard trim; fine since drops re-seed staggered anyway
+				this.drops.length = targetCount; 
 			}
 
 			for (const drop of this.drops) {
@@ -1388,7 +1389,7 @@ const Game = {
 	},
 	cloudManager: {
 		clouds: [],
-		maxClouds: 40,
+		maxClouds: 70,
 		spawnPaused: false,
 		frames: [
 			{
@@ -1407,14 +1408,14 @@ const Game = {
 				col: 1,
 				row: 1
 		}],
-		tileWidth: 64,
-		tileHeight: 64, //
+		tileWidth: 128,
+		tileHeight: 128,
 
-		spawnChancePerSecond: {
+		spawnChancePerSecond: { 
 			clear: 0.1,
-			cloudy: 0.6,
-			rainy: 0.8,
-			stormy: 1.0
+			cloudy: 1.5,
+			rainy: 2.1,
+			stormy: 3.3
 		},
 
 		update: function(dt) {
@@ -1428,37 +1429,42 @@ const Game = {
 				const speed = c.leaving ? c.speed * 3 : c.speed;
 				c.x += speed * dt * c.direction;
 
-				const offscreen = c.x < -this.tileWidth * 2 || c.x > Game.canvas.width + this.tileWidth * 2;
+				const offscreen = c.x < -this.tileWidth * c.scale * 2 || c.x > Game.canvas.width + this.tileWidth * c.scale * 2;
 				if (c.leaving && offscreen) this.clouds.splice(i, 1);
 			}
 		},
 
-		spawnCloud: function(x,y) {
+		spawnCloud: function(x, y) {
 			const direction = Math.random() < 0.5 ? -1 : 1;
-            var cloud = {
-				x: direction === 1 ? -this.tileWidth : Game.canvas.width + this.tileWidth,
+			const depth = Math.random(); 
+			const scale = 0.5 + depth * 1.1; 
+			var cloud = {
+				x: direction === 1 ? -this.tileWidth * scale : Game.canvas.width + this.tileWidth * scale,
 				y: 20 + Math.random() * (Game.waterLine * 0.5),
-				speed: 8 + Math.random() * 12,
+				speed: (6 + depth * 14), // ez parallax 
 				direction,
 				frame: choose(this.frames),
 				leaving: false,
-				alpha: 0.85 + Math.random() * 0.15
-			}
-            if (x) cloud.x = x;
-            if (y) cloud.y = y;
+				alpha: 0.5 + depth * 0.45, 
+				scale
+			};
+			if (x) cloud.x = x;
+			if (y) cloud.y = y;
 			this.clouds.push(cloud);
 		},
-        initialClouds: function(){
-            var MAX_INITIAL = Math.floor(this.spawnChancePerSecond[Game.weather.current]*10);
-            for (var i=0;i<=MAX_INITIAL;i++){
-                this.spawnCloud(Math.random()*Game.canvas.width);
-                }
-        },
+
+		initialClouds: function() {
+			var MAX_INITIAL = Math.floor(this.spawnChancePerSecond[Game.weather.current] * 14);
+			console.log(MAX_INITIAL);
+			for (var i = 0; i <= MAX_INITIAL; i++) {
+				this.spawnCloud(Math.random() * Game.canvas.width);
+			}
+		},
+
 		tellCloudsToLeave: function() {
 			this.spawnPaused = true;
 			for (const c of this.clouds) c.leaving = true;
 		},
-
 		allowClouds: function() {
 			this.spawnPaused = false;
 		},
@@ -1467,16 +1473,16 @@ const Game = {
 			const sheet = Game.imgs["flo_clouds"];
 			if (!sheet || !sheet.complete) return;
 
-			for (const c of this.clouds) {
+			// hack far to near parallax for overlap
+			const sorted = [...this.clouds].sort((a, b) => a.scale - b.scale);
+			for (const c of sorted) {
 				ctx.save();
 				ctx.globalAlpha = c.alpha;
-				drawFromSheetRect(ctx, sheet, c.frame.col, c.frame.row, this.tileWidth, this.tileHeight, c.x, c
-					.y, 1, c.direction > 0);
+				drawFromSheetRect(ctx, sheet, c.frame.col, c.frame.row, this.tileWidth, this.tileHeight, c.x, c.y, c.scale, c.direction > 0);
 				ctx.restore();
 			}
 		}
 	},
-
 	// PARTICLES
 	particles: [],
 	spawnParticle: function(x, y, text = false, img = false, col = false, isFish = false, fishCol = 0, fishRow =
@@ -1503,7 +1509,7 @@ const Game = {
 			particle.gravity = 800; // Pull back down
 			particle.rotation = Math.random() * Math.PI;
 			particle.rotationSpeed = (Math.random() - 0.5) * 6;
-			particle.scale = 1.2;
+			particle.scale = 1;
 		} else {
 			// Standard text floating behavior
 			particle.text = text;
@@ -1553,7 +1559,7 @@ const Game = {
 				this.ctx.translate(p.x, p.y);
 				this.ctx.rotate(p.rotation);
 
-				const tileSize = 32;
+				const tileSize = 64;
 				const dw = tileSize * p.scale;
 				const dh = tileSize * p.scale;
 
@@ -1612,13 +1618,11 @@ const Game = {
 	},
 
 	autoClicker: {
-		enabled: false,
+		enabled: true,
 		held: false,
-		interval: 0.25, 
+		interval: 0.1, 
 		timer: 0,
 	},
-
-
 	// PLAYER
 	playerChar: {
 		char: 0,
@@ -1630,6 +1634,7 @@ const Game = {
 	charactersById: {},
 	// Your ID sits here.
 	playerId: null,
+	
 
 	ensurePlayerId: function() {
 		if (!Game.playerId) {
@@ -1724,13 +1729,13 @@ const Game = {
 				Game.time * this.env.waveSpeed
 			) * this.env.waveHeight * 10;
 
-		const y = this.waterLine + 8 + wave;
+		const y = this.waterLine + 12 + wave;
 
 		const boatBack = Game.imgs["flo_boatback"];
 		const boatFront = Game.imgs["flo_boatfront"];
 
 		this.ctx.save();
-		this.ctx.translate(Game.centerX-(boatFront.width)/2, y);
+		this.ctx.translate(Game.centerX + 36, y);
 		this.ctx.rotate(this.boat.tilt + (wave /75)); // Combine hover tilt + wave roll
 		this.ctx.scale(this.boat.scale, this.boat.scale);
 
@@ -1738,9 +1743,7 @@ const Game = {
 			Game.ctx.drawImage(
 				boatBack,
 				-boatBack.width / 2,
-				-boatBack.height*2,
-				boatFront.width*2,
-				boatFront.height*2
+				-boatBack.height,
 			);
 		}
 
@@ -1760,7 +1763,7 @@ const Game = {
 					Game.playerChar.costume,
 					Game.playerChar.char,
 					32,
-					8,
+					12,
 					-52+Game.ascension.timer, // Move player upward during ascension
 					1,
 					Game.clickSide,
@@ -1773,30 +1776,46 @@ const Game = {
 					playerSheet,
 					Game.playerChar.costume,
 					Game.playerChar.char,
-					32,
-					10,
-					-52,
+					64,
+					-80,
+					-80,
 					1,
 					Game.clickSide,
 				);
 			}
 		}
+		
+		
+
 		if (Game.guestChar) {
 			const guestChar = Game.charactersById[Game.guestChar.charId];
 			const guestCostume = guestChar?.costumes.find(c => c.id === Game.guestChar.costumeId);
 			if (guestChar && guestCostume && playerSheet.complete) {
-				drawFromSheet(Game.ctx, playerSheet, guestCostume.col, guestChar.row, 32, -30, -52, 1, !Game.clickSide);
+				drawFromSheet(Game.ctx, playerSheet, guestCostume.col, guestChar.row, 64, -30, -80, 1, !Game.clickSide);
 			}
 		}
 		if (boatFront.complete) {
 			Game.ctx.drawImage(
 				boatFront,
 				-boatFront.width / 2,
-				-boatFront.height*2,
-				boatFront.width*2,
-				boatFront.height*2
+				-boatFront.height
 			);
 		}
+
+		// draw rod
+		const playerRod = Game.imgs["flo_rod"];
+		if (playerRod){
+			if (Game.clickSide) {
+				drawFromSheet(Game.ctx, playerRod, 0, 0, 96, -108, -100, 1, !Game.clickSide);
+			}
+			else {
+				drawFromSheet(Game.ctx, playerRod, 0, 0, 96, -84, -100, 1, !Game.clickSide);
+			}
+			//Game.ctx.drawImage(playerRod,-80,-80,);
+		}
+
+		// Draw bobber
+		
 		Game.ctx.restore();
 	},
 	weatherWaveParams: {
@@ -1925,7 +1944,29 @@ const Game = {
 
 		ctx.globalAlpha = 1;
 	},
-	
+	drawWaterVignette: function() {
+		const ctx = Game.ctx;
+		const width = Game.canvas.width;
+		const height = Game.canvas.height;
+
+		const grad = ctx.createRadialGradient(
+			Game.centerX, height, height * 0.15,
+			Game.centerX, height, height * 0.9
+		);
+		grad.addColorStop(0, "rgba(0,0,0,0)");
+		if (Game.dayNight.isday) {
+			var alpha = 0.15;
+		}
+		else {
+			var alpha = 0.55;
+		}
+		grad.addColorStop(1, `rgba(0,0,0,${alpha})`);
+
+		ctx.save();
+		ctx.fillStyle = grad;
+		ctx.fillRect(0, Game.waterLine, width, height - Game.waterLine); // water region only, sky stays untouched
+		ctx.restore();
+	},
 	// Fish Managers
 	allFish: [],
 	allFishById: {},
@@ -2006,6 +2047,13 @@ const Game = {
 				fish.x = Game.canvas.width + 40;
 				fish.direction = -1;
 			}
+
+			// Fit into water
+			if (fish.y < Game.waterLine) {
+				fish.y = Math.min(Math.max(this.waterLine +
+            fish.definition.yPref +
+            Math.random() * fish.definition.yRange, this.waterLine + 52), this.canvas.height - 30)
+			}
 		}
 	},
 
@@ -2022,7 +2070,7 @@ const Game = {
 				fishSheet,
 				definition.column,
 				definition.row,
-				32,
+				64,
 				fish.x,
 				fish.y,
 				1,
@@ -2035,9 +2083,9 @@ const Game = {
 		active: [],
 		unlocked: true,
 		maxActive: 3,
-		tileSize: 32,
+		tileSize: 64,
 		flapFrameTime: 0.25,
-		spawnChancePerTick: 0.01,
+		spawnChancePerTick: 0.1,
 
 		trySpawn: function() {
 			if (!this.unlocked) return;
@@ -2117,7 +2165,7 @@ const Game = {
 
 			for (const g of this.active) {
 				const col = g.state === "splat" ? 2 : g.frame;
-				drawFromSheet(ctx, sheet, col, 0, this.tileSize, g.x - this.tileSize, g.y - this.tileSize, 2, g.flipped==1);
+				drawFromSheet(ctx, sheet, col, 0, this.tileSize, g.x - this.tileSize, g.y - this.tileSize, 1, g.flipped==1);
 			}
 		},
 		getClickedSeagull: function(x, y) {
@@ -2493,39 +2541,7 @@ const Game = {
 			build: function(div) {
 				div.innerHTML = "<h2>Stats & Fisher</h2>";
 				div.style.overflowY = "scroll";
-				// --- Character / skin picker ---
-				const charSection = document.createElement("div");
-				charSection.className = "statsSection";
-				charSection.innerHTML = "<h3>Choose Your Fisher</h3>";
-				const charGrid = document.createElement("div");
-				charGrid.className = "charGrid";
-
-				for (const character of Game.characters) {
-					for (const costume of character.costumes) {
-						const unlocked = character.unlocked && costume.unlocked;
-						const btn = document.createElement("button");
-						btn.className = "charOption" + (unlocked ? "" : " locked silhouette");
-						if (Game.playerChar.char === character.row && Game.playerChar.costume === costume.col) {
-							btn.classList.add("selected");
-						}
-						btn.appendChild(Game.renderIcon("flo_chars", costume.col, character.row, 32));
-						if (unlocked) {
-							btn.addEventListener("click", () => {
-								Game.playerChar.char = character.row;
-								Game.playerChar.costume = costume.col;
-								Game.updateStatsButtonPreview();
-								Game.refreshPanel("stats");
-							});
-						} else {
-							btn.title = "???";
-							btn.disabled = true;
-						}
-						charGrid.appendChild(btn);
-					}
-				}
-				charSection.appendChild(charGrid);
-				div.appendChild(charSection);
-
+				
 				// --- All-time stats ---
 				const statsSection = document.createElement("div");
 				statsSection.className = "statsSection";
@@ -2564,9 +2580,9 @@ const Game = {
 				achList.className = "statsIconList";
 				for (const ach of Game.achievements) {
 					const wrap = document.createElement("div");
-					wrap.className = "statsIconItem" + (ach.unlocked ? "" : " locked");
+					wrap.className = "statsIconItem" + (ach.unlocked ? " unlocked" : "") + " statsframe";
 					wrap.title = ach.unlocked ? `${ach.name}: ${ach.desc}` : "???";
-					wrap.appendChild(Game.renderIcon(ach.icon.sheet, ach.icon.col, ach.icon.row, 64));
+					if (ach.unlocked) wrap.appendChild(Game.renderIcon(ach.icon.sheet, ach.icon.col, ach.icon.row, 64));
 					achList.appendChild(wrap);
 				}
 				achSection.appendChild(achList);
@@ -2576,7 +2592,8 @@ const Game = {
 
 				//Game.updateStatsButtonPreview();
 				//setTimeout(() => {Game.refreshPanel("stats")},50)
-
+				
+				/*
 				const shareSection = document.createElement("div");
 				shareSection.className = "statsSection";
 				shareSection.innerHTML = "<h3>Share Your Fisher</h3>";
@@ -2608,6 +2625,8 @@ const Game = {
 				shareSection.appendChild(importBtn);
 				div.appendChild(shareSection);
 				;
+				*/
+
 			}
 		},
 	},
@@ -3312,6 +3331,7 @@ const Game = {
 				owned: b.owned,
 				rateMult: b.rateMult
 			})),
+			achievements: Game.achievements,
 			env: {
 				weatherCurrent: Game.weather.current,
 				weatherTarget: Game.weather.target,
@@ -3378,7 +3398,10 @@ const Game = {
 			
 			Game.currentFish = data.currentFish || 0;
 			Game.fishAllTime = data.fishAllTime || 0;
-
+			for (const saved of data.achievements || []) {
+				const ach = Game.achievementsById[saved.id];
+				if (ach) ach.unlocked = saved.unlocked;
+				}
 			for (const saved of data.upgrades || []) {
 				const upgrade = Game.upgradesById[saved.id];
 				if (upgrade) upgrade.purchased = saved.purchased;
@@ -3449,6 +3472,7 @@ const Game = {
 		Game.refreshPanel("upgrade");
 		Game.refreshPanel("building");
 		Game.refreshPanel("settings");
+		Game.refreshPanel("stats");
 
 		const elapsed = data?.lastSaveTime ? (Date.now() - data.lastSaveTime) / 1000 : 0;
 		Game.lastSaveTime = data?.lastSaveTime || Date.now();
@@ -3537,7 +3561,12 @@ const Game = {
         if (hardReset) {
             localStorage.removeItem(Game.SAVE_KEY);
 			Game.fishAllTime = 0;
+			for (const ach of Game.achievements){
+				ach.unlocked = false;
+			}
         }
+
+		Game.ensurePanelsClosed();
         Game.currentFish = 0;
         Game.lastSaveTime = Date.now();
 
@@ -3553,6 +3582,12 @@ const Game = {
         for (const fish of Game.allFish) {
             fish.unlocked = false;
         }
+		Game.allFishById["flo_bream"].unlocked = true;
+
+		// Clear Fish
+		Game.spawnedFish = [];
+		Game.initialFish();
+
 		// Clear Weather
 
         Game.specialWeather.active = null;
@@ -3567,8 +3602,11 @@ const Game = {
 
         Game.dayNight.progress = 0;
 
+		
 
 		Game.seagullManager.active = [];
+
+
         Game.syncUpgradeStatModifiers();
         Game.recalcGains();
         Game.updateFishDisplay();
@@ -3576,9 +3614,8 @@ const Game = {
 		Game.refreshPanel("cultist");
         Game.refreshPanel("upgrade");
         Game.refreshPanel("building");
+		Game.refreshPanel("stats");
         Game.fishDirty = true;
-
-		// Clear Fish
 
     },
     // Achievements
@@ -3602,24 +3639,38 @@ const Game = {
         ach.unlocked = true;
         if (ach.award) ach.award(Game); // one-time payout
         Game.showAchievementPopup(ach);
-        console.log("Achievement unlocked:", ach.name);
+        /*console.log("Achievement unlocked:", ach.name);*/
         Game.markPanelDirty("stats");
         Game.checkCharacterUnlocks();
     },
-    showAchievementPopup: function(ach) {
-        const popup = getEle("achievementPopup");
-        const text = getEle("achievementPopupText");
+    achievementPopupQueue: [],
+	achievementPopupShowing: false,
 
-        if (popup && text) {
-            text.textContent = `Achievement Unlocked: ${ach.name} - ${ach.desc}`;
-            popup.classList.add("open");
-            setTimeout(() => {
-                popup.classList.remove("open");
-            }, 3000);
-        } else {
-            console.log(`Achievement Unlocked: ${ach.name} - ${ach.desc}`);
-        }
-    },
+	showAchievementPopup: function(ach) {
+		Game.achievementPopupQueue.push(ach);
+		if (!Game.achievementPopupShowing) Game.advanceAchievementPopupQueue();
+	},
+
+	advanceAchievementPopupQueue: function() {
+		const ach = Game.achievementPopupQueue.shift();
+		if (!ach) { Game.achievementPopupShowing = false; return; }
+
+		Game.achievementPopupShowing = true;
+		const popup = getEle("achievementPopup");
+		const text = getEle("achievementPopupText");
+
+		if (popup && text) {
+			text.textContent = `Achievement Unlocked: ${ach.name} - ${ach.desc}`;
+			popup.classList.add("open");
+			setTimeout(() => {
+				popup.classList.remove("open");
+				setTimeout(() => Game.advanceAchievementPopupQueue(), 300); // brief gap so back-to-back unlocks don't look like a single flicker
+			}, 3000);
+		} else {
+			console.log(`Achievement Unlocked: ${ach.name} - ${ach.desc}`);
+			Game.advanceAchievementPopupQueue(); // no DOM to animate — just keep draining the queue
+		}
+	},
 	getAchievementPercent: function() { // used by the char unlocker and some other things
 		if (Game.achievements.length === 0) return 0;
 		return Game.achievements.filter(a => a.unlocked).length / Game.achievements.length;
